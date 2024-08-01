@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const PackageSchema = new mongoose.Schema({
   evaluationStage: {
-    phaseOne: {
+    PhaseOne: {
       TradingPeriod: {
         type: String,
         required: true,
@@ -28,7 +28,7 @@ const PackageSchema = new mongoose.Schema({
         required: true,
       },
     },
-    phaseTwo: {
+    PhaseTwo: {
       TradingPeriod: {
         type: String,
         required: true,
@@ -55,34 +55,33 @@ const PackageSchema = new mongoose.Schema({
       },
     },
   },
-  fundedStage: [
-    {
-      TradingPeriod: {
-        type: String,
-        required: true,
-      },
-      MaximumDailyLoss: {
-        type: String,
-        required: true,
-      },
-      MaximumLoss: {
-        type: String,
-        required: true,
-      },
-      ProfitTarget: {
-        type: String,
-        required: true,
-      },
-      Leverage: {
-        type: String,
-        required: true,
-      },
-      PayoutsProfitSplit: {
-        type: String,
-        required: true,
-      },
+  fundedStage: {
+    TradingPeriod: {
+      type: String,
+      required: true,
     },
-  ],
+    MaximumDailyLoss: {
+      type: String,
+      required: true,
+    },
+    MaximumLoss: {
+      type: String,
+      required: true,
+    },
+    ProfitTarget: {
+      type: String,
+      required: true,
+    },
+    Leverage: {
+      type: String,
+      required: true,
+    },
+    PayoutsProfitSplit: {
+      type: String,
+      required: true,
+    },
+  },
+
   Step: {
     type: Number,
     required: true,

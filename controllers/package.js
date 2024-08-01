@@ -11,7 +11,7 @@ const packages =async (req,res)=>{
     try {
         console.log('sksjdx');
         const packages = await Package.find({});
-        console.log(packages);
+        console.log(packages[0].evaluationStage.PhaseOne)
         res.status(200).json({ packages });
 
     } catch (error) {
