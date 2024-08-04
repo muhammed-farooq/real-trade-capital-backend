@@ -1,6 +1,5 @@
 const Stripe = require('stripe')
 const Order = require('../models/order')
-const Provider = require('../models/provider')
 const User = require('../models/user')
 const Admin = require('../models/admin');
 

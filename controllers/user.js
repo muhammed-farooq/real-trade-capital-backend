@@ -108,63 +108,47 @@ const profileDetails = async (req, res) => {
   }
 };
 
-const editUser = async (req, res) => {
-  const {
-    file,
-    body: { name, email, place },
-  } = req;
-  try {
-    let image;
-    if (file) {
-      const mimeType = mime.lookup(file.originalname);
-      if (mimeType && mimeType.includes("image/")) {
-        console.log(process.env.CLOUDINARY_API_KEY);
-        const upload = await cloudinary.uploader.upload(file?.path);
-        image = upload.secure_url;
-        if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-      } else {
-        if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-        return res
-          .status(400)
-          .json({ errMsg: "This file not a image", status: false });
-      }
-    }
-    console.log(file, image);
-    const userData = await User.findByIdAndUpdate(
-      { _id: req.payload.id },
-      { $set: { name: name, email: email, place: place, image: image } }
-    );
-    console.log(userData);
-    userData
-      ? res
-          .status(200)
-          .json({
-            msg: "Profile updated successfully",
-            userData: { name: name, email: email, place: place, image: image },
-          })
-      : res.status(400).json({ errMsg: "User not found" });
-  } catch (error) {
-    if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-    res.status(504).json({ errMsg: "Gateway time-out" });
-  }
-};
+// const editUser = async (req, res) => {
+//   const {
+//     file,
+//     body: { name, email, place },
+//   } = req;
+//   try {
+//     let image;
+//     if (file) {
+//       const mimeType = mime.lookup(file.originalname);
+//       if (mimeType && mimeType.includes("image/")) {
+//         console.log(process.env.CLOUDINARY_API_KEY);
+//         const upload = await cloudinary.uploader.upload(file?.path);
+//         image = upload.secure_url;
+//         if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+//       } else {
+//         if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+//         return res
+//           .status(400)
+//           .json({ errMsg: "This file not a image", status: false });
+//       }
+//     }
+//     console.log(file, image);
+//     const userData = await User.findByIdAndUpdate(
+//       { _id: req.payload.id },
+//       { $set: { name: name, email: email, place: place, image: image } }
+//     );
+//     console.log(userData);
+//     userData
+//       ? res
+//           .status(200)
+//           .json({
+//             msg: "Profile updated successfully",
+//             userData: { name: name, email: email, place: place, image: image },
+//           })
+//       : res.status(400).json({ errMsg: "User not found" });
+//   } catch (error) {
+//     if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+//     res.status(504).json({ errMsg: "Gateway time-out" });
+//   }
+// };
 
-const otpLogin = async (req, res) => {
-  try {
-    const { phone } = req.body;
-    const user = await User.findOne({ phone });
-    if (!user) return res.status(401).json({ errMsg: "User not found" });
-    if (user.isBanned)
-      return res.status(401).json({ errMsg: "You are blocked" });
-    const token = generateToken(user._id, "user");
-
-    res
-      .status(200)
-      .json({ msg: "Login succesfull", name: user?.name, token, role: "user" });
-  } catch (error) {
-    res.status(504).json({ errMsg: "Gateway time-out" });
-  }
-};
 
 const blockUser = async (req, res) => {
   try {
@@ -197,10 +181,8 @@ const unBlockUser = async (req, res) => {
 module.exports = {
   signup,
   login,
-  otpLogin,
   allUsers,
   blockUser,
   unBlockUser,
   profileDetails,
-  editUser,
 };
