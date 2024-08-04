@@ -1,14 +1,14 @@
 const mongoose = require('mongoose');
 
 const orderSchema = new mongoose.Schema({
-    providerId:{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: '',
-        required: true
-    },
-    customerId :{
+    userId :{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'users',
+        required: true
+    },
+    package :{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'package',
         required: true
     },
     name:{
