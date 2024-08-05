@@ -18,6 +18,7 @@ const {
   placeOrder,
 } = require("../controllers/order");
 const { packages } = require("../controllers/package");
+const { getAccountLists } = require("../controllers/account");
 const upload = multer.createMulter();
 
 const userRouter = express.Router();
@@ -37,6 +38,12 @@ userRouter
 userRouter
   .route("/orders")
   .get(verifyTokenUser, getOrderLists)
+  .post(verifyTokenUser, placeOrder);
+// .patch(verifyTokenUser,cancelOrder)
+
+userRouter
+  .route("/account/:id")
+  .get(verifyTokenUser, getAccountLists)
   .post(verifyTokenUser, placeOrder);
 // .patch(verifyTokenUser,cancelOrder)
 

@@ -5,7 +5,7 @@ const { packages, addService, editPackage } = require("../controllers/package");
 const { allUsers, blockUser, unBlockUser } = require("../controllers/user");
 
 const multer = require("../config/multer");
-const { getOrderLists, getOrderData } = require("../controllers/order");
+const { getOrderLists, getOrderData, ApproveOrder } = require("../controllers/order");
 const upload = multer.createMulter();
 const adminRoute = express.Router();
 
@@ -30,5 +30,6 @@ adminRoute.patch(
 
 adminRoute.get("/order", verifyTokenAdmin, getOrderLists);
 adminRoute.get("/order/:id", verifyTokenAdmin, getOrderData);
+adminRoute.post("/order-approve", verifyTokenAdmin, ApproveOrder);
 
 module.exports = adminRoute;
