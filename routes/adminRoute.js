@@ -28,7 +28,7 @@ adminRoute.patch(
   editPackage
 );
 
-adminRoute.get("/orders", verifyTokenAdmin, getOrderLists);
+adminRoute.get("/order", verifyTokenAdmin, getOrderLists);
 adminRoute.get("/order/:id", verifyTokenAdmin, getOrderData);
 
 module.exports = adminRoute;

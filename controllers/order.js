@@ -2,18 +2,95 @@ const Stripe = require('stripe')
 const Order = require('../models/order')
 const User = require('../models/user')
 const Admin = require('../models/admin');
+const Account = require('../models/account');
 
-
-
-// const Razorpay = require('razorpay')
 const stripe = Stripe(process.env.STRIPE_KEY)
+
+const generateUniqueAccountName = async () => {
+  let uniqueName;
+  let isUnique = false;
+  while (!isUnique) {
+    uniqueName = `acc_${Math.random().toString(36).substr(2, 9)}`;
+    const existingAccount = await Account.findOne({ accountName: uniqueName });
+    if (!existingAccount) {
+      isUnique = true;
+    }
+  }
+  return uniqueName;
+};
+
+const placeOrder = async (req, res) => {
+  try {
+    const { configureAccount, billingDetails, payment, user, package } = req.body;
+    console.log(configureAccount, billingDetails, payment, user, package);
+
+    const userData = await User.findById(user);
+    if (!userData) {
+      return res.status(404).send({ error: 'User not found' });
+    }
+
+    // Update user details if necessary
+    if (!userData.phone) userData.phone = billingDetails.phone;
+    if (!userData.address) userData.address = {};
+    if (!userData.address.street) userData.address.street = billingDetails.street;
+    if (!userData.address.city) userData.address.city = billingDetails.city;
+    if (!userData.address.postalCode) userData.address.postalCode = billingDetails.postalCode;
+    if (!userData.address.country) userData.address.country = billingDetails.country;
+    await userData.save();
+
+    // Create a new order
+    const newOrder = new Order({
+      name: `${billingDetails.firstName} ${billingDetails.lastName}`,
+      userId: user,
+      package,
+      price: configureAccount.price,
+      platform: configureAccount.platform,
+      step: configureAccount.accountType,
+      amountSize: configureAccount.accountSize,
+      paymentMethod: payment,
+      country: billingDetails.country,
+      phone: billingDetails.phone,
+      mail: billingDetails.mail,
+      billingDetails: {
+        title: billingDetails.title,
+        postalCode: billingDetails.postalCode,
+        country: billingDetails.country,
+        city: billingDetails.city,
+        street: billingDetails.street,
+        dateOfBirth: billingDetails?.dateOfBirth,
+      },
+    });
+    const savedOrder = await newOrder.save();
+
+    // Create a new account
+    const uniqueAccountName = await generateUniqueAccountName();
+    const newAccount = new Account({
+      userId: user,
+      name: `${billingDetails.firstName} ${billingDetails.lastName}`,
+      order: savedOrder._id,
+      package,
+      platform: configureAccount.platform,
+      step: configureAccount.accountType,
+      mail: billingDetails.mail,
+      paymentMethod: payment,
+      accountName: uniqueAccountName,
+    });
+    await newAccount.save();
+
+    res.status(201).send({ msg: 'Order placed successfully', order: savedOrder });
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).send({ error: 'Internal server error' });
+  }
+};
+
+
 
 
 const getOrderLists =async (req,res) => {
-
   try {
-
     const { filter,skip,path,role } = req.query;
+    console.log(skip,path,role);
     let { id } = req.payload;
     let orderList = []
     let limit = 10
@@ -22,13 +99,13 @@ const getOrderLists =async (req,res) => {
     if(role == 'user'){
       if(path =='/profile') orderList = await Order.find({customerId:id}).limit(limit).populate({path: 'providerId',select: 'name'}).sort({ orderCreatedAt:-1 });
       else orderList = await Order.find({customerId:id}).populate({path: 'providerId',select: 'name'}).sort({ orderCreatedAt:1 });
-    }else if(role == 'provider')orderList = await Order.find({providerId:id}).skip(skip).limit(limit).sort({ orderCreatedAt:1 });
-    else if(role == 'admin')orderList = await Order.find({}).skip(skip).limit(limit).populate({path: 'providerId',select: 'name '}).sort({ orderCreatedAt:-1 });
+    }else if(role == 'admin')orderList = await Order.find({}).skip(skip).limit(limit).populate({path:'userId',select: 'first_name last_name email phone'}).sort({ orderCreatedAt:-1 });
 
-    // console.log(orderList,id);
+    console.log(orderList,id);
     res.status(200).json({ orderList });
     
   } catch (error) {
+    console.log(error);
     res.status(504).json({ errMsg: "Gateway time-out" });
   }
 
@@ -54,7 +131,6 @@ const getOrderData =async (req,res) => {
     } catch (error) {
       res.status(504).json({ errMsg:'Invalid Id Check the path' }) 
     }
-
 
 }
 
@@ -247,4 +323,5 @@ module.exports = {
   paymentStatusHandle,
   cancelOrder,
   verifyrzpay,
+  placeOrder
 }

@@ -15,6 +15,7 @@ const {
   getOrderLists,
   getOrderData,
   cancelOrder,
+  placeOrder,
 } = require("../controllers/order");
 const { packages } = require("../controllers/package");
 const upload = multer.createMulter();
@@ -36,7 +37,7 @@ userRouter
 userRouter
   .route("/orders")
   .get(verifyTokenUser, getOrderLists)
-  .post(verifyTokenUser, paymentModeHandle);
+  .post(verifyTokenUser, placeOrder);
 // .patch(verifyTokenUser,cancelOrder)
 
 module.exports = userRouter;

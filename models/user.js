@@ -1,116 +1,122 @@
-const mongoose = require("mongoose");
+  const mongoose = require("mongoose");
 
-const userSchema = new mongoose.Schema(
-  {
-    first_name: {
-      type: String,
-      required: true,
-    },
-    last_name: {
-      type: String,
-      required: true,
-    },
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-      lowercase: true,
-      trim: true,
-    },
-    phone: {
-      type: Number,
-    },
-    password: {
-      type: String,
-      trim: true,
-      required: true,
-      minlength: [6],
-    },
-    address: {
-      street: {
+  const userSchema = new mongoose.Schema(
+    {
+      title:{
         type: String,
       },
-      postalCode: {
+      first_name: {
         type: String,
+        required: true,
       },
-      city: {
+      last_name: {
         type: String,
+        required: true,
       },
-      country: {
+      email: {
         type: String,
+        required: true,
+        unique: true,
+        lowercase: true,
+        trim: true,
       },
-    },
-    wallet: {
-      type: Number,
-      default: 0,
-    },
-    isAdmin: {
-      type: Boolean,
-    },
-    affiliate_id: {
-      type: String,
-      required: true,
-    },
-    is_affiliate: {
-      type: Boolean,
-    },
-    affiliate_share: {
-      type: Number,
-    },
-    parent_affiliate: {
-      type: String,
-      required: true,
-    },
-    my_referrals: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "users",
+      phone: {
+        type: Number,
       },
-    ],
-    walletHistory: [
-      {
-        date: {
-          type: Date,
-          default: Date.now(),
-        },
-        amount: {
+      password: {
+        type: String,
+        trim: true,
+        required: true,
+        minlength: [6],
+      },
+      address: {
+        postalCode: {
           type: Number,
-          default: 0,
         },
-        from: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "provider",
-        },
-        transactionType: {
+        country: {
           type: String,
-          enum: ["Credit", "Debit"],
         },
-      },
-    ],
-    isBanned: { type: Boolean, default: false },
-    isVerify: { type: Boolean, default: false },
-    notifications: [
-      {
-        from: {
+        city: {
           type: String,
-          required: true,
         },
-        content: {
+        street: {
           type: String,
-          required: true,
         },
-        sendedAt: {
+        dateOfBirth: {
           type: Date,
-          default: Date.now(),
         },
       },
-    ],
-    isPurchased:{ type: Boolean, default: false }
-  },
-  {
-    timestamps: true,
-  }
-);
+      wallet: {
+        type: Number,
+        default: 0,
+      },
+      isAdmin: {
+        type: Boolean,
+      },
+      affiliate_id: {
+        type: String,
+        required: true,
+      },
+      is_affiliate: {
+        type: Boolean,
+      },
+      affiliate_share: {
+        type: Number,
+      },
+      parent_affiliate: {
+        type: String,
+        required: true,
+      },
+      my_referrals: [
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "users",
+        },
+      ],
+      walletHistory: [
+        {
+          date: {
+            type: Date,
+            default: Date.now(),
+          },
+          amount: {
+            type: Number,
+            default: 0,
+          },
+          from: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "provider",
+          },
+          transactionType: {
+            type: String,
+            enum: ["Credit", "Debit"],
+          },
+        },
+      ],
+      isBanned: { type: Boolean, default: false },
+      isVerify: { type: Boolean, default: false },
+      notifications: [
+        {
+          from: {
+            type: String,
+            required: true,
+          },
+          content: {
+            type: String,
+            required: true,
+          },
+          sendedAt: {
+            type: Date,
+            default: Date.now(),
+          },
+        },
+      ],
+      isPurchased:{ type: Boolean, default: false }
+    },
+    {
+      timestamps: true,
+    }
+  );
 
-const userModel = mongoose.model("users", userSchema);
-module.exports = userModel;
+  const userModel = mongoose.model("users", userSchema);
+  module.exports = userModel;

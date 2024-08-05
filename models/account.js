@@ -25,6 +25,10 @@ const accountSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    step: {
+      type: String,
+      required: true,
+    },
     accountName: {
       type: String,
       required: true,
@@ -33,17 +37,18 @@ const accountSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["Not Passed", "Passed", "Pending"],
+      enum: ["Not Passed", "Passed", "Pending", "On going"],
       default: "Pending",
     },
     isBanned: { type: Boolean, default: false },
     isVerify: { type: Boolean, default: false },
     isPurchased: { type: Boolean, default: false },
+    approvedDate: { type: Date },
   },
   {
     timestamps: true,
   }
 );
 
-const userModel = mongoose.model("accounts", accountSchema);
-module.exports = userModel;
+const Account = mongoose.model("account", accountSchema);
+module.exports = Account;

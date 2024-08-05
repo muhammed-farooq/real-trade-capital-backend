@@ -1,89 +1,105 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
-const orderSchema = new mongoose.Schema({
-    userId :{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'users',
-        required: true
+const orderSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
     },
-    package :{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'package',
-        required: true
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "users",
+      required: true,
     },
-    name:{
-        type:String,
-        required:true
+    package: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "package",
+      required: true,
     },
-    email:{
-        type:String,
-        required:true
+    coupon: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "coupon",
     },
-    eventDate:{
+    price: {
+      type: Number,
+      required: true,
+    },
+    platform: {
+      type: String,
+      required: true,
+    },
+    txnId: {
+      type: String,
+    },
+    step: {
+      type: String,
+      required: true,
+    },
+    amountSize: {
+      type: String,
+      required: true,
+    },
+    paymentMethod: {
+      type: String,
+      required: true,
+    },
+    country: {
+      type: String,
+    },
+    orderStatus: {
+      type: String,
+      enum: ["Pending", "Completed", "Cancelled"],
+      default: "Pending",
+    },
+    txnStatus: {
+      type: String,
+      enum: ["Pending", "Completed", "Cancelled"],
+      default: "Pending",
+    },
+    phone: {
+      type: Number,
+      required: true,
+    },
+    mail: {
+      type: String,
+      required: true,
+    },
+    isCouponApplied: {
+      type: Boolean,
+      default: false,
+    },
+    billingDetails: {
+      title: {
+        type: String,
+      },
+      postalCode: {
+        type: Number,
+        required: true,
+      },
+      country: {
+        type: String,
+      },
+      city: {
+        type: String,
+        required: true,
+      },
+      street: {
+        type: String,
+        required: true,
+      },
+      dateOfBirth: {
         type: Date,
-        required:true
-    },
-    mobile:{
-        type:Number,
-        required:true
-    },
-    address:{
-        zip:{
-            type:Number,
-            required:true
-        },
-        city:{
-            type:String,
-            required:true
-        },
-        landmark:{
-            type:String,
-            required:true
-        },
-        district:{
-            type:String,
-            required:true
-        }
-    },
-    options:[{
-        optionId:{
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'options',
-            required: true
-        },
-        count:{
-            type:Number,
-            required:true
-        },
-        totalAmount:{
-            type:Number,
-            required:true
-        }
-    }],
-    grandTotal:{
-        type:Number,
-        required:true
-    },
-    paymentType:{
-        type:String,
-        required:true
+        // required: true,
+      },
     },
     orderCreatedAt: {
-        type: Date,
-        default: Date.now()
+      type: Date,
+      default: Date.now(),
     },
-    orderCancelledAt: {
-        type: Date,
-        default: Date.now()
-    },  
-    status: {
-        type: String,
-        enum: ['Confirmed', 'Completed', 'Cancelled'],
-        default: 'Confirmed'
-    },
-});
+  },
+  {
+    timestamps: true,
+  }
+);
 
-
-const order = mongoose.model('order', orderSchema);
+const order = mongoose.model("order", orderSchema);
 module.exports = order;
-

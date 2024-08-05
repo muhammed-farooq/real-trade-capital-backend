@@ -64,10 +64,10 @@ const adminSchema = new mongoose.Schema(
         },
       },
     ],
-  },
-  {
-    timestamps: true,
-  }
+    },
+    {
+      timestamps: true,
+    }
 );
 
 const adminModal = mongoose.model("admins", adminSchema);
