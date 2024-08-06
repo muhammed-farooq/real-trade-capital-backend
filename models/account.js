@@ -70,11 +70,9 @@ const accountSchema = new mongoose.Schema(
     FundedStageCredentials: {
       email: {
         type: String,
-       
       },
       username: {
         type: String,
-   
       },
       password: {
         type: String,
@@ -100,7 +98,11 @@ const accountSchema = new mongoose.Schema(
     isBanned: { type: Boolean, default: false },
     isVerify: { type: Boolean, default: false },
     isPurchased: { type: Boolean, default: false },
+    toNextStep: { type: Boolean, default: false },
+    nextStep: { type: String, default: '' },
     approvedDate: { type: Date },
+    requestedOn: { type: Date },
+    passedOn: { type: Date },
   },
   {
     timestamps: true,

@@ -11,7 +11,6 @@ const encryptPassword = (password) => {
   return CryptoJS.AES.encrypt(password, secretKey).toString();
 };
 
-
 const generateUniqueAccountName = async () => {
   let uniqueName;
   let isUnique = false;
@@ -44,6 +43,8 @@ const placeOrder = async (req, res) => {
     if (!userData.address.city) userData.address.city = billingDetails.city;
     if (!userData.address.postalCode)
       userData.address.postalCode = billingDetails.postalCode;
+    if (!userData.address.country)
+      userData.address.country = billingDetails.country;
     if (!userData.address.country)
       userData.address.country = billingDetails.country;
     await userData.save();
@@ -357,32 +358,30 @@ const cancelOrder = async (req, res) => {
     res.status(500).json({ errMsg: "Server error", status: false });
   }
 };
+
 const ApproveOrder = async (req, res) => {
-  console.log('ApproveOrder endpoint hit');
+  console.log("ApproveOrder endpoint hit");
   try {
     const { formValue, orderId } = req.body;
-    console.log('Request body:', req.body);
+    console.log("Request body:", req.body);
 
     const { username, email, password, server, platform } = formValue;
-    const hashedPassword = encryptPassword(password)
+    const hashedPassword = encryptPassword(password);
 
-    // Find the order by ID
     const order = await Order.findById(orderId);
     if (!order) {
       console.log(`Order not found for orderId: ${orderId}`);
       return res.status(404).json({ error: "Order not found" });
     }
-    console.log('Order found:', order);
+    console.log("Order found:", order);
 
-    // Find the account associated with the order
     const account = await Account.findOne({ order: orderId });
     if (!account) {
       console.log(`Account not found for orderId: ${orderId}`);
       return res.status(404).json({ error: "Account not found" });
     }
-    console.log('Account found:', account);
+    console.log("Account found:", account);
 
-    // Update account details
     console.log(username, email, password, server, platform);
     account.PhaseOneCredentials = {
       email,
@@ -394,19 +393,19 @@ const ApproveOrder = async (req, res) => {
     account.status = "Ongoing";
     account.approvedDate = new Date();
     await account.save();
-    console.log('Account updated and saved:', account);
+    console.log("Account updated and saved:", account);
 
     // Update order status
     order.orderStatus = "Completed";
     await order.save();
-    console.log('Order status updated and saved:', order);
+    console.log("Order status updated and saved:", order);
 
     // Update user details if needed
     const user = await User.findById(account.userId);
     if (user && !user.isPurchased) {
       user.isPurchased = true;
       await user.save();
-      console.log('User status updated and saved:', user);
+      console.log("User status updated and saved:", user);
     }
 
     res.status(200).json({ success: true, msg: "Order approved successfully" });
@@ -415,7 +414,6 @@ const ApproveOrder = async (req, res) => {
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 };
-
 
 const verifyrzpay = async (req, res) => {
   const razorpay_order_id = req.body?.response.razorpay_order_id;
