@@ -60,6 +60,10 @@ const PackageSchema = new mongoose.Schema({
       type: String,
       required: true,
     },
+    MinimumTradingDays: {
+      type: String,
+      required: true,
+    },
     MaximumDailyLoss: {
       type: String,
       required: true,

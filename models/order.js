@@ -67,6 +67,9 @@ const orderSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    reasonForCancel: {
+      type: String,
+    },
     billingDetails: {
       title: {
         type: String,
@@ -90,6 +93,10 @@ const orderSchema = new mongoose.Schema(
         type: Date,
         // required: true,
       },
+    },
+    orderCancelledAt: {
+      type: Date,
+      // required: true,
     },
     orderCreatedAt: {
       type: Date,

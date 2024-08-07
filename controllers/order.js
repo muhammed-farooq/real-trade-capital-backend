@@ -289,73 +289,46 @@ const paymentStatusHandle = async (req, res) => {
 
 const cancelOrder = async (req, res) => {
   try {
-    const { id } = req.query;
-    console.log(id);
-    if (id) {
-      const date = new Date();
-
-      const cancel = await Order.findOneAndUpdate(
-        { _id: id },
-        { $set: { status: "Cancelled", orderCancelledAt: date } }
-      );
-
-      if (!cancel)
-        res.status(500).json({ errMsg: "Server error", status: false });
-
-      const priceProvider = Math.floor((cancel.grandTotal * 90) / 100);
-      const priceAdmin = Math.floor((cancel.grandTotal * 10) / 100);
-
-      const walletHistoryUser = {
-        date: date,
-        amount: cancel.grandTotal,
-        from: cancel.providerId,
-        transactionType: "Credit",
-      };
-      const walletHistoryProvider = {
-        date: date,
-        amount: priceProvider,
-        from: cancel.customerId,
-        transactionType: "Debit",
-      };
-      const walletHistoryAdmin = {
-        date: date,
-        amount: priceProvider,
-        from: cancel.customerId,
-        transactionType: "Debit",
-      };
-
-      const userUpdate = await User.updateOne(
-        { _id: cancel.customerId },
-        {
-          $inc: { wallet: cancel.grandTotal },
-          $push: { walletHistory: walletHistoryUser },
-        }
-      );
-      const providerUpdate = await Provider.updateOne(
-        { _id: cancel.providerId },
-        {
-          $inc: { wallet: -priceProvider },
-          $push: { walletHistory: walletHistoryProvider },
-        }
-      );
-      const adminUpdate = await Admin.updateOne(
-        { phone: process.env.ADMIN_NUMBER },
-        {
-          $inc: { wallet: -priceAdmin },
-          $push: { walletHistory: walletHistoryAdmin },
-        }
-      );
-
-      userUpdate && providerUpdate && adminUpdate
-        ? res
-            .status(200)
-            .json({ msg: "Order Cancelled successfully", status: true, date })
-        : res.status(500).json({ errMsg: "Server error", status: false });
-    } else {
-      res.status(402).json({ errMsg: "Somthing wrong", status: false });
+    const { reason, orderId } = req.body;
+    console.log("Request body:", req.body);
+    const order = await Order.findById(orderId);
+    if (!order) {
+      console.log(`Order not found for orderId: ${orderId}`);
+      return res.status(404).json({ error: "Order not found" });
     }
+    console.log("Order found:", order);
+
+    const account = await Account.findOne({ order: orderId });
+    if (!account) {
+      console.log(`Account not found for orderId: ${orderId}`);
+      return res.status(404).json({ error: "Account not found" });
+    }
+    console.log("Account found:", account);
+    account.status = "Cancelled";
+    account.reasonForCancel = reason;
+    account.orderCancelledAt = new Date();
+    await account.save();
+    console.log("Account updated and saved:", account);
+    
+    // Update order status
+    order.orderStatus = "Cancelled";
+    account.orderCancelledAt = new Date();
+    order.reason = reason;
+    await order.save();
+    console.log("Order status updated and saved:", order);
+
+    // Update user details if needed
+    const user = await User.findById(account.userId);
+    if (user && !user.isPurchased) {
+      user.isPurchased = true;
+      await user.save();
+      console.log("User status updated and saved:", user);
+    }
+
+    res.status(200).json({ success: true, msg: "Order approved successfully" });
   } catch (error) {
-    res.status(500).json({ errMsg: "Server error", status: false });
+    console.error("Error approving order:", error);
+    res.status(500).json({ success: false, error: "Internal server error" });
   }
 };
 

@@ -80,6 +80,7 @@ const accountSchema = new mongoose.Schema(
       server: {
         type: String,
       },
+
       platform: {
         type: String,
       },
@@ -90,9 +91,15 @@ const accountSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
     },
+    reasonForReject: {
+      type: String,
+    },
+    reasonForCancel: {
+      type: String,
+    },
     status: {
       type: String,
-      enum: ["Not Passed", "Passed", "Pending", "Ongoing"],
+      enum: ["Not Passed", "Passed", "Pending", "Ongoing","Cancelled"],
       default: "Pending",
     },
     isBanned: { type: Boolean, default: false },
@@ -103,6 +110,10 @@ const accountSchema = new mongoose.Schema(
     approvedDate: { type: Date },
     requestedOn: { type: Date },
     passedOn: { type: Date },
+    failedOn: { type: Date },
+    toFundedOn: { type: Date },
+    toPhaseTwoOn: { type: Date },
+    orderCancelledAt: { type: Date },
   },
   {
     timestamps: true,

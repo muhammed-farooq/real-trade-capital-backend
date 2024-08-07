@@ -1,4 +1,11 @@
 const Account = require("../models/account");
+const CryptoJS = require("crypto-js");
+  ``
+const encryptPassword = (password) => {
+  const secretKey = process.env.PASSWORD_SALT;
+  return CryptoJS.AES.encrypt(password, secretKey).toString();
+};
+
 
 const getAccountLists = async (req, res) => {
   try {
@@ -95,16 +102,17 @@ const ApproveRequest = async (req, res) => {
         server,
         platform,
       };
-      account.phase ="Phase Two"
-    }else if(account.nextStep == "Funded") {
-      account.PhaseTwoCredentials = {
+      account.phase = "Phase Two";
+      account.toPhaseTwoOn = new Date();
+    } else if (account.nextStep == "Funded") {
+      account.FundedStageCredentials = {
         email,
         username,
         password: hashedPassword,
         server,
         platform,
       };
-      account.phase ="Funded"
+      account.phase = "Funded";
       account.status = "Passed";
       account.passedOn = new Date();
     }
@@ -114,7 +122,36 @@ const ApproveRequest = async (req, res) => {
     await account.save();
     console.log("Account updated and saved:", account);
 
-    res.status(200).json({ success: true, msg: "Order approved successfully" });
+    res
+      .status(200)
+      .json({ success: true, msg: "Request approved successfully" });
+  } catch (error) {
+    console.error("Error approving order:", error);
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
+};
+
+const rejectRequest = async (req, res) => {
+  try {
+    const { reason, accountId } = req.body;
+    const account = await Account.findOne({ _id: accountId });
+    if (!account) {
+      console.log(`Account not found for accountId: ${accountId}`);
+      return res.status(404).json({ error: "Account not found" });
+    }
+    console.log(reason);
+    account.failedOn = new Date();
+    account.reasonForReject = reason;
+    account.nextStep = "";
+    account.status = "Not Passed";
+    account.toNextStep = false;
+
+    await account.save();
+    console.log("Account updated and saved:", account);
+
+    res
+      .status(200)
+      .json({ success: true, msg: "Request rejected successfully" });
   } catch (error) {
     console.error("Error approving order:", error);
     res.status(500).json({ success: false, error: "Internal server error" });
@@ -125,4 +162,5 @@ module.exports = {
   toNextStage,
   ApproveRequest,
   getAllTheRequests,
+  rejectRequest,
 };
