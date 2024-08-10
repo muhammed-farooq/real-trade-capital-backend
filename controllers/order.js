@@ -4,6 +4,7 @@ const User = require("../models/user");
 const Admin = require("../models/admin");
 const Account = require("../models/account");
 const CryptoJS = require("crypto-js");
+const Package = require("../models/package");
 
 const stripe = Stripe(process.env.STRIPE_KEY);
 const encryptPassword = (password) => {
@@ -50,6 +51,7 @@ const placeOrder = async (req, res) => {
     await userData.save();
 
     // Create a new order
+    const packageData = await Package.findById({ _id: package });
     const newOrder = new Order({
       name: `${billingDetails.firstName} ${billingDetails.lastName}`,
       userId: user,
@@ -74,6 +76,13 @@ const placeOrder = async (req, res) => {
     const savedOrder = await newOrder.save();
 
     // Create a new account
+    const MinimumTrading = {
+      PhaseOne: packageData.evaluationStage.PhaseOne.MinimumTradingDays,
+      Funded: packageData.fundedStage.MinimumTradingDays,
+      ...(packageData.evaluationStage.PhaseTwo && {
+        PhaseTwo: packageData.evaluationStage.PhaseTwo.MinimumTradingDays,
+      }),
+    };
     const uniqueAccountName = await generateUniqueAccountName();
     const newAccount = new Account({
       userId: user,
@@ -84,6 +93,7 @@ const placeOrder = async (req, res) => {
       step: configureAccount.accountType,
       mail: billingDetails.mail,
       paymentMethod: payment,
+      MinimumTrading,
       accountName: uniqueAccountName,
     });
     await newAccount.save();
@@ -309,7 +319,7 @@ const cancelOrder = async (req, res) => {
     account.orderCancelledAt = new Date();
     await account.save();
     console.log("Account updated and saved:", account);
-    
+
     // Update order status
     order.orderStatus = "Cancelled";
     account.orderCancelledAt = new Date();
@@ -317,15 +327,9 @@ const cancelOrder = async (req, res) => {
     await order.save();
     console.log("Order status updated and saved:", order);
 
-    // Update user details if needed
-    const user = await User.findById(account.userId);
-    if (user && !user.isPurchased) {
-      user.isPurchased = true;
-      await user.save();
-      console.log("User status updated and saved:", user);
-    }
-
-    res.status(200).json({ success: true, msg: "Order approved successfully" });
+    res
+      .status(200)
+      .json({ success: true, msg: "Order Cancelled successfully" });
   } catch (error) {
     console.error("Error approving order:", error);
     res.status(500).json({ success: false, error: "Internal server error" });
@@ -365,6 +369,18 @@ const ApproveOrder = async (req, res) => {
     };
     account.status = "Ongoing";
     account.approvedDate = new Date();
+
+    // Populate MinimumTradingDays and MinimumTrading based on the package
+    const phaseOneMinTradingDays = parseInt(account.MinimumTrading.PhaseOne);
+    // const phaseTwoMinTradingDays = parseInt(account.MinimumTrading.PhaseTwo);
+    // const fundedMinTradingDays = parseInt(account.MinimumTrading.Funded);
+
+    // Calculate the minimum trading end date for Phase One
+    const currentDate = new Date();
+    account.MinimumTradingDays.PhaseOne = new Date(
+      currentDate.setDate(currentDate.getDate() + phaseOneMinTradingDays)
+    );
+
     await account.save();
     console.log("Account updated and saved:", account);
 

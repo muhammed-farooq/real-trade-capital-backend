@@ -19,6 +19,11 @@ const {
 } = require("../controllers/order");
 const { packages } = require("../controllers/package");
 const { getAccountLists, toNextStage } = require("../controllers/account");
+const {
+  getPayoutRequestOfUser,
+  getAccountInPayoutRequest,
+  singleUserData,
+} = require("../controllers/payout");
 const upload = multer.createMulter();
 
 const userRouter = express.Router();
@@ -45,9 +50,22 @@ userRouter
   .route("/account/:id")
   .get(verifyTokenUser, getAccountLists)
   .post(verifyTokenUser, placeOrder);
-  // .patch(verifyTokenUser,cancelOrder)
+// .patch(verifyTokenUser,cancelOrder)
+userRouter.route("/next-stage").post(verifyTokenUser, toNextStage);
+
 userRouter
-  .route("/next-stage")
-  .post(verifyTokenUser, toNextStage)
+  .route("/payout/:id")
+  .get(verifyTokenUser, getPayoutRequestOfUser)
+  .post(verifyTokenUser, placeOrder);
+userRouter.get(
+  "/payout-account/:id",
+  verifyTokenUser,
+  getAccountInPayoutRequest
+);
+userRouter.get(
+  "/payout-user",
+  verifyTokenUser,
+  singleUserData
+);
 
 module.exports = userRouter;

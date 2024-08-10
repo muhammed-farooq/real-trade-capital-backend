@@ -1,11 +1,10 @@
 const Account = require("../models/account");
 const CryptoJS = require("crypto-js");
-  ``
+``;
 const encryptPassword = (password) => {
   const secretKey = process.env.PASSWORD_SALT;
   return CryptoJS.AES.encrypt(password, secretKey).toString();
 };
-
 
 const getAccountLists = async (req, res) => {
   try {
@@ -15,13 +14,13 @@ const getAccountLists = async (req, res) => {
     // if (!accounts.length) {
     //   return res
     //     .status(404)
-    //     .json({ message: "No accounts found for this user." });
+    //     .json({ msg: "No accounts found for this user." });
     // }
 
     res.status(200).json({ allAccounts: accounts });
   } catch (error) {
     console.error("Error fetching account lists:", error);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ msg: "Server error" });
   }
 };
 
@@ -44,39 +43,63 @@ const toNextStage = async (req, res) => {
     const account = await Account.findOne({ _id: accountId });
 
     if (!account) {
-      return res.status(404).json({ message: "Account not found." });
+      return res.status(404).json({ msg: "Account not found." });
     }
-    if (!account.status == "Ongoing") {
+    if (account.status !== "Ongoing") {
       return res
-        .status(404)
-        .json({ message: `Account status is ${account.status}.` });
+        .status(400)
+        .json({ msg: `Account status is ${account.status}.` });
     }
     if (account.toNextStep) {
-      return res.status(201).json({ message: `You requested all ready` });
+      return res
+        .status(409)
+        .json({
+          msg: `You have already requested to move to the next step.`,
+        });
     }
 
+    const currentDate = new Date();
+    let minTradingDaysOver = false;
+
+    // Check if minimum trading days are over for the current phase
+    if (account.phase === "Phase One") {
+      if (currentDate >= account.MinimumTradingDays.PhaseOne) {
+        minTradingDaysOver = true;
+      }
+    } else if (account.phase === "Phase Two") {
+      if (currentDate >= account.MinimumTradingDays.PhaseTwo) {
+        minTradingDaysOver = true;
+      }
+    } else if (account.phase === "Funded") {
+      return res.status(201).json({ info: "Account is already at its peak." });
+    }
+
+    if (!minTradingDaysOver) {
+      return res.status(201).json({
+        info:
+          "Minimum trading days are not yet completed for the current phase.",
+      });
+    }
     if (account.step === "stepOne") {
       if (account.phase === "Phase One") {
         account.nextStep = "Funded";
-      } else if (account.phase === "Funded") {
-        return res.status(201).json({ info: "Account all ready it's peak" });
       }
     } else if (account.step === "stepTwo") {
       if (account.phase === "Phase One") {
         account.nextStep = "Phase Two";
       } else if (account.phase === "Phase Two") {
         account.nextStep = "Funded";
-      } else if (account.phase === "Funded") {
-        return res.status(201).json({ info: "Account all ready it's peak" });
       }
     }
+
     account.toNextStep = true;
     account.requestedOn = new Date();
     await account.save();
-    res.status(200).json({ account, msg: "Request sended successfully" });
+
+    res.status(200).json({ account, msg: "Request sent successfully." });
   } catch (error) {
     console.error("Error updating account:", error);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ msg: "Server error." });
   }
 };
 
@@ -103,6 +126,12 @@ const ApproveRequest = async (req, res) => {
         platform,
       };
       account.phase = "Phase Two";
+      const phaseTwoMinTradingDays = parseInt(account.MinimumTrading.PhaseTwo);
+      const currentDate = new Date();
+      account.MinimumTradingDays.PhaseTwo = new Date(
+        currentDate.setDate(currentDate.getDate() + phaseTwoMinTradingDays)
+      );
+
       account.toPhaseTwoOn = new Date();
     } else if (account.nextStep == "Funded") {
       account.FundedStageCredentials = {
@@ -115,6 +144,11 @@ const ApproveRequest = async (req, res) => {
       account.phase = "Funded";
       account.status = "Passed";
       account.passedOn = new Date();
+      const fundedMinTradingDays = parseInt(account.MinimumTrading.Funded);
+      const currentDate = new Date();
+      account.MinimumTradingDays.Funded = new Date(
+        currentDate.setDate(currentDate.getDate() + fundedMinTradingDays)
+      );
     }
     account.nextStep = "";
     account.toNextStep = false;

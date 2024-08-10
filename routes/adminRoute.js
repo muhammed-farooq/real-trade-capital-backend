@@ -9,6 +9,7 @@ const {
   getOrderLists,
   getOrderData,
   ApproveOrder,
+  cancelOrder,
 } = require("../controllers/order");
 const {
   getAllTheRequests,
@@ -36,6 +37,7 @@ adminRoute.patch("/packages", verifyTokenAdmin, editPackage);
 adminRoute.get("/order", verifyTokenAdmin, getOrderLists);
 adminRoute.get("/order/:id", verifyTokenAdmin, getOrderData);
 adminRoute.post("/order-approve", verifyTokenAdmin, ApproveOrder);
+adminRoute.post("/order-cancel", verifyTokenAdmin, cancelOrder);
 adminRoute.get("/request", verifyTokenAdmin, getAllTheRequests);
 adminRoute.post("/request-approve", verifyTokenAdmin, ApproveRequest);
 adminRoute.post("/request-reject", verifyTokenAdmin, rejectRequest);

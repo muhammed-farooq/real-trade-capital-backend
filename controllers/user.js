@@ -17,7 +17,7 @@ const signup = async (req, res) => {
     if (existingUser) {
       return res.status(409).json({ errMsg: "User already exists" });
     }
-    console.log('yo1');
+    console.log("yo1");
 
     // Generate a unique referral number
     const timestamp = Date.now();
@@ -25,7 +25,7 @@ const signup = async (req, res) => {
     const timestampPart = timestamp.toString().slice(-4);
     const randomNumPart = randomNum.toString().padStart(3, "0");
     const referralNumber = `#${timestampPart}${randomNumPart}`;
-    console.log('yo2');
+    console.log("yo2");
 
     // Create new user
     const newUser = new User({
@@ -36,13 +36,13 @@ const signup = async (req, res) => {
       affiliate_id: referralNumber,
       parent_affiliate: referralCode || "none",
     });
-    
+
     await newUser.save();
-    console.log('yo2');
+    console.log("yo2");
 
     // Handle referral code
     if (referralCode) {
-    console.log('yo7777');
+      console.log("yo7777");
 
       const referralUser = await User.findOne({ affiliate_id: referralCode });
       if (!referralUser) {
@@ -53,7 +53,7 @@ const signup = async (req, res) => {
       referralUser.my_referrals.push(newUser._id); // Add new user to referrer's referrals
       await referralUser.save();
     }
-    console.log('yo3');
+    console.log("yo3");
 
     res.status(200).json({ msg: "Registration Success" });
   } catch (error) {
@@ -66,15 +66,25 @@ const login = async (req, res) => {
   try {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
-    const users = await User.findOne();
-    console.log(users,"c",email, "dkhfvhdvf", password,user);
     if (!user) return res.status(401).json({ errMsg: "User not found" });
-    const passwordCheck =  user.password == sha256(password + process.env.PASSWORD_SALT);
-    if (!passwordCheck) return res.status(401).json({ errMsg: "Password doesn't match" });
-    if(user.isBanned) return res.status(401).json({errMsg:"You are blocked"});
-    if(!user.isVerify) return res.status(401).json({errMsg:"You are not verified yet please check you male"});
-    const token = generateToken(user._id,'user')
-    res.status(200).json({ msg: 'Login succesfull', name: user?.name, userData:user, token, role: 'user' })
+    const passwordCheck =
+      user.password == sha256(password + process.env.PASSWORD_SALT);
+    if (!passwordCheck)
+      return res.status(401).json({ errMsg: "Password doesn't match" });
+    if (user.isBanned)
+      return res.status(401).json({ errMsg: "You are blocked" });
+    if (!user.isVerify)
+      return res
+        .status(401)
+        .json({ errMsg: "You are not verified yet please check you male" });
+    const token = generateToken(user._id, "user");
+    res.status(200).json({
+      msg: "Login successfully",
+      name: user?.name,
+      userData: user,
+      token,
+      role: "user",
+    });
   } catch (error) {
     console.log(error);
     res.status(504).json({ errMsg: "Gateway time-out" });
@@ -148,7 +158,6 @@ const profileDetails = async (req, res) => {
 //     res.status(504).json({ errMsg: "Gateway time-out" });
 //   }
 // };
-
 
 const blockUser = async (req, res) => {
   try {

@@ -85,6 +85,16 @@ const accountSchema = new mongoose.Schema(
         type: String,
       },
     },
+    MinimumTradingDays: {
+      PhaseOne: { type: Date },
+      PhaseTwo: { type: Date },
+      Funded: { type: Date },
+    },
+    MinimumTrading: {
+      PhaseOne: { type: String, require: true },
+      PhaseTwo: { type: String },
+      Funded: { type: String, require: true },
+    },
     accountName: {
       type: String,
       required: true,
@@ -99,14 +109,14 @@ const accountSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["Not Passed", "Passed", "Pending", "Ongoing","Cancelled"],
+      enum: ["Not Passed", "Passed", "Pending", "Ongoing", "Cancelled"],
       default: "Pending",
     },
     isBanned: { type: Boolean, default: false },
     isVerify: { type: Boolean, default: false },
     isPurchased: { type: Boolean, default: false },
     toNextStep: { type: Boolean, default: false },
-    nextStep: { type: String, default: '' },
+    nextStep: { type: String, default: "" },
     approvedDate: { type: Date },
     requestedOn: { type: Date },
     passedOn: { type: Date },
