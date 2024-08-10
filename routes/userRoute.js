@@ -23,6 +23,7 @@ const {
   getPayoutRequestOfUser,
   getAccountInPayoutRequest,
   singleUserData,
+  PayoutRequest,
 } = require("../controllers/payout");
 const upload = multer.createMulter();
 
@@ -56,11 +57,15 @@ userRouter.route("/next-stage").post(verifyTokenUser, toNextStage);
 userRouter
   .route("/payout/:id")
   .get(verifyTokenUser, getPayoutRequestOfUser)
-  .post(verifyTokenUser, placeOrder);
 userRouter.get(
   "/payout-account/:id",
   verifyTokenUser,
   getAccountInPayoutRequest
+);
+userRouter.post(
+  "/payout-account",
+  verifyTokenUser,
+  PayoutRequest
 );
 userRouter.get(
   "/payout-user",

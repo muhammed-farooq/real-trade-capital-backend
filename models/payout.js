@@ -21,7 +21,6 @@ const payoutSchema = new mongoose.Schema(
     },
     name: {
       type: String,
-      required: true,
     },
     accountName: {
       type: String,
@@ -29,6 +28,24 @@ const payoutSchema = new mongoose.Schema(
     },
     reasonForReject: {
       type: String,
+    },
+    FundedStageCredentials: {
+      email: {
+        type: String,
+      },
+      username: {
+        type: String,
+      },
+      password: {
+        type: String,
+      },
+      server: {
+        type: String,
+      },
+
+      platform: {
+        type: String,
+      },
     },
     status: {
       type: String,
@@ -51,7 +68,6 @@ const payoutSchema = new mongoose.Schema(
     },
     mail: {
       type: Number,
-      required: true,
     },
     amount: {
       type: Number,

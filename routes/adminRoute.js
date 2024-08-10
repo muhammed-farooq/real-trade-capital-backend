@@ -16,6 +16,7 @@ const {
   ApproveRequest,
   rejectRequest,
 } = require("../controllers/account");
+const { getPayoutRequestAdmin } = require("../controllers/payout");
 const upload = multer.createMulter();
 const adminRoute = express.Router();
 
@@ -41,5 +42,7 @@ adminRoute.post("/order-cancel", verifyTokenAdmin, cancelOrder);
 adminRoute.get("/request", verifyTokenAdmin, getAllTheRequests);
 adminRoute.post("/request-approve", verifyTokenAdmin, ApproveRequest);
 adminRoute.post("/request-reject", verifyTokenAdmin, rejectRequest);
+
+adminRoute.get("/payout", verifyTokenAdmin, getPayoutRequestAdmin);
 
 module.exports = adminRoute;

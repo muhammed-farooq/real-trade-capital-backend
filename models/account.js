@@ -21,6 +21,10 @@ const accountSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    name: {
+      type: String,
+      required: true,
+    },
     phase: {
       type: String,
       default: "Phase One",
