@@ -15,6 +15,14 @@ const payoutSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    platform: {
+      type: String,
+      required: true,
+    },
+    TRC20Wallet: {
+      type: String,
+      required: true,
+    },
     step: {
       type: String,
       required: true,
@@ -22,11 +30,7 @@ const payoutSchema = new mongoose.Schema(
     name: {
       type: String,
     },
-    accountName: {
-      type: String,
-      required: true,
-    },
-    reasonForReject: {
+    note: {
       type: String,
     },
     FundedStageCredentials: {
@@ -54,10 +58,10 @@ const payoutSchema = new mongoose.Schema(
     },
     approvedDate: { type: Date },
     requestedOn: { type: Date },
-    requestCancelledAt: { type: Date },
+    payoutCancelledAt: { type: Date },
     txnStatus: {
       type: String,
-      enum: ["Pending", "Completed", "Cancelled"],
+      enum: ["Pending", "Processed", "Cancelled"],
       default: "Pending",
     },
     Certificate: {
@@ -68,6 +72,9 @@ const payoutSchema = new mongoose.Schema(
     },
     mail: {
       type: Number,
+    },
+    txnId: {
+      type: String,
     },
     amount: {
       type: Number,

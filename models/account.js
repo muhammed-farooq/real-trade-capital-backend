@@ -23,7 +23,6 @@ const accountSchema = new mongoose.Schema(
     },
     name: {
       type: String,
-      required: true,
     },
     phase: {
       type: String,
@@ -88,6 +87,18 @@ const accountSchema = new mongoose.Schema(
       platform: {
         type: String,
       },
+    },
+    fondedAccountNo: {
+      type: Number,
+      default: 0,
+    },
+    withdrawsAmount: {
+      type: String,
+      default: 0,
+    },
+    withdrawIng: {
+      type: Boolean,
+      default: false,
     },
     MinimumTradingDays: {
       PhaseOne: { type: Date },

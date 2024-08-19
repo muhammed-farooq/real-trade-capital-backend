@@ -25,6 +25,11 @@ const {
   singleUserData,
   PayoutRequest,
 } = require("../controllers/payout");
+const {
+  getAllWithdrawals,
+  addWithdrawal,
+  deleteWithdrawal,
+} = require("../controllers/withdrawal");
 const upload = multer.createMulter();
 
 const userRouter = express.Router();
@@ -54,23 +59,16 @@ userRouter
 // .patch(verifyTokenUser,cancelOrder)
 userRouter.route("/next-stage").post(verifyTokenUser, toNextStage);
 
-userRouter
-  .route("/payout/:id")
-  .get(verifyTokenUser, getPayoutRequestOfUser)
+userRouter.route("/payout/:id").get(verifyTokenUser, getPayoutRequestOfUser);
 userRouter.get(
   "/payout-account/:id",
   verifyTokenUser,
   getAccountInPayoutRequest
 );
-userRouter.post(
-  "/payout-account",
-  verifyTokenUser,
-  PayoutRequest
-);
-userRouter.get(
-  "/payout-user",
-  verifyTokenUser,
-  singleUserData
-);
+userRouter.post("/payout-account", verifyTokenUser, PayoutRequest);
+userRouter.get("/payout-user", verifyTokenUser, singleUserData);
+
+userRouter.get("/withdrawal", verifyTokenUser, getAllWithdrawals);
+
 
 module.exports = userRouter;

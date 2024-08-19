@@ -16,7 +16,16 @@ const {
   ApproveRequest,
   rejectRequest,
 } = require("../controllers/account");
-const { getPayoutRequestAdmin } = require("../controllers/payout");
+const {
+  getPayoutRequestAdmin,
+  ApprovePayout,
+  rejectPayout,
+} = require("../controllers/payout");
+const {
+  getAllWithdrawals,
+  addWithdrawal,
+  deleteWithdrawal,
+} = require("../controllers/withdrawal");
 const upload = multer.createMulter();
 const adminRoute = express.Router();
 
@@ -44,5 +53,13 @@ adminRoute.post("/request-approve", verifyTokenAdmin, ApproveRequest);
 adminRoute.post("/request-reject", verifyTokenAdmin, rejectRequest);
 
 adminRoute.get("/payout", verifyTokenAdmin, getPayoutRequestAdmin);
+adminRoute.post("/payout-approve", verifyTokenAdmin, ApprovePayout);
+adminRoute.post("/payout-reject", verifyTokenAdmin, rejectPayout);
+
+adminRoute.get("/withdrawal", verifyTokenAdmin, getAllWithdrawals);
+
+adminRoute.post("/withdrawal", verifyTokenAdmin, addWithdrawal);
+
+adminRoute.patch("/withdrawal/:id", verifyTokenAdmin, deleteWithdrawal);
 
 module.exports = adminRoute;

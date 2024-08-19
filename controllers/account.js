@@ -16,7 +16,7 @@ const getAccountLists = async (req, res) => {
     //     .status(404)
     //     .json({ msg: "No accounts found for this user." });
     // }
-
+console.log(accounts);
     res.status(200).json({ allAccounts: accounts });
   } catch (error) {
     console.error("Error fetching account lists:", error);
@@ -74,12 +74,12 @@ const toNextStage = async (req, res) => {
       return res.status(201).json({ info: "Account is already at its peak." });
     }
 
-    if (!minTradingDaysOver) {
-      return res.status(201).json({
-        info:
-          "Minimum trading days are not yet completed for the current phase.",
-      });
-    }
+    // if (!minTradingDaysOver) {
+    //   return res.status(201).json({
+    //     info:
+    //       "Minimum trading days are not yet completed for the current phase.",
+    //   });
+    // }
     if (account.step === "stepOne") {
       if (account.phase === "Phase One") {
         account.nextStep = "Funded";

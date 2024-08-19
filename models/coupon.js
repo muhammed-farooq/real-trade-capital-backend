@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const withdrawalSchema = new mongoose.Schema(
+const couponSchema = new mongoose.Schema(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -47,5 +47,5 @@ const withdrawalSchema = new mongoose.Schema(
   }
 );
 
-const withdrawal = mongoose.model("withdrawal", withdrawalSchema);
-module.exports = withdrawal;
+const coupon = mongoose.model("coupon", couponSchema);
+module.exports = coupon;
