@@ -2,50 +2,35 @@ const mongoose = require("mongoose");
 
 const couponSchema = new mongoose.Schema(
   {
-    userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "users",
-    },
-    account: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "account",
-    },
-    name: {
+    userId: [{ type: mongoose.Schema.Types.ObjectId, ref: "users" }], // Array of users who used the coupon
+    couponCode: {
       type: String,
       required: true,
+      trim: true,
+      unique: true,
     },
-    email: {
-      type: String,
-    },
-    paymentMethod: {
-      type: String,
-    },
-    txnId: {
-      type: String,
-      required: true,
-    },
-    amount: {
+    couponOffer: {
       type: Number,
       required: true,
     },
-    isAffiliate: {
+    isStopped: {
       type: Boolean,
       default: false,
     },
-    status: {
+    discountType: {
       type: String,
-      enum: ["Processed", "Pending", "Cancelled"],
-      default: "Pending",
+      enum: ["percentage", "amount"],
+      required: true,
+    },
+    expiryDate: {
+      type: Date,
+      required: true,
     },
   },
   {
     timestamps: true,
-    capped: {
-      size: 102400, // Size in bytes; you can adjust this based on your document size.
-      max: 25, // Maximum number of documents.
-    },
   }
 );
 
-const coupon = mongoose.model("coupon", couponSchema);
-module.exports = coupon;
+const Coupon = mongoose.model("Coupon", couponSchema);
+module.exports = Coupon;
