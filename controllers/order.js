@@ -64,6 +64,8 @@ const placeOrder = async (req, res) => {
       country: billingDetails.country,
       phone: billingDetails.phone,
       mail: billingDetails.mail,
+      coupon: configureAccount?.coupon,
+      couponRedusedAmount: configureAccount?.couponRedusedAmount,
       billingDetails: {
         title: billingDetails.title,
         postalCode: billingDetails.postalCode,

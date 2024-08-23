@@ -26,6 +26,13 @@ const {
   addWithdrawal,
   deleteWithdrawal,
 } = require("../controllers/withdrawal");
+const {
+  addCoupon,
+  getCoupons,
+  getAllCoupons,
+  stopCoupon,
+  useCoupon,
+} = require("../controllers/coupon");
 const upload = multer.createMulter();
 const adminRoute = express.Router();
 
@@ -61,5 +68,10 @@ adminRoute.get("/withdrawal", verifyTokenAdmin, getAllWithdrawals);
 adminRoute.post("/withdrawal", verifyTokenAdmin, addWithdrawal);
 
 adminRoute.patch("/withdrawal/:id", verifyTokenAdmin, deleteWithdrawal);
+
+adminRoute.post("/coupon", verifyTokenAdmin, addCoupon);
+adminRoute.get("/coupon", verifyTokenAdmin, getAllCoupons);
+adminRoute.patch("/coupon/:id", verifyTokenAdmin, stopCoupon);
+adminRoute.post("/useCoupon", verifyTokenAdmin, useCoupon);
 
 module.exports = adminRoute;
