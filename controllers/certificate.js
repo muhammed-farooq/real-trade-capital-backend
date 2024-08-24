@@ -1,25 +1,83 @@
-import PDFDocument from "pdfkit";
-
-const PDFDocument = require("pdfkit");
-const User = require("../models/user");
-const winnerIng = require("./assets/winners.png");
-const mongoose = require("mongoose");
-
+const PDFDocument = require("pdfkit"); // Ensure you have pdfkit installed
+const User = require("../models/user"); // Adjust the path according to your project structure
+const Payout = require("../models/payout"); // Adjust the path according to your project structure
+const path = require("path");
 const generateCertificate = async (req, res) => {
   try {
+    const payoutId = req.params.id;
     const userId = req.payload.id;
 
-    if (!userId) {
-      throw new Error("User object or user ID is undefined");
+    if (!payoutId) {
+      return res.status(400).json({ errMsg: "Payout ID is undefined" });
     }
-    console.log(user);
+    if (!userId) {
+      return res.status(400).json({ errMsg: "User ID is undefined" });
+    }
 
-    const user = mongoose.Types.ObjectId.createFromHexString(userId);
-    const userData = await User.findOne(
-      { _id: user },
-      { first_name: 1, last_name: 1 }
-    );
-    const userName = userData.first_name + userData.last_name;
+    // Find user details using userId
+    const userData = await User.findById(userId, {
+      first_name: 1,
+      last_name: 1,
+    });
+
+    // Check if user exists
+    if (!userData) {
+      return res.status(404).json({ errMsg: "User not found" });
+    }
+
+    const userName =
+      `${userData.first_name} ${userData.last_name}`.toUpperCase();
+
+    // Find payout details using payoutId
+    const payoutDetails = await Payout.findById(payoutId, {
+      amount: 1,
+      requestedOn: 1,
+    });
+    if (!payoutDetails) {
+      return res.status(404).json({ errMsg: "Payout not found" });
+    }
+
+    const payoutAmount = payoutDetails.amount.toFixed(2); // Convert amount to two decimal places
+    const payoutDate = payoutDetails.requestedOn.toLocaleDateString(); // Format the date
+
+    // Create a new PDF document
+    // const doc = new PDFDocument({ layout: "landscape", size: "A4" });
+    // const imagePath = path.join(__dirname, "../assets/img/Logo.png");
+    // console.log("Image Path:", imagePath);
+
+    // // Add your company's logo
+    // doc.image(imagePath, 100, 100, { width: 100 }); // Adjust path and dimensions as needed
+
+    // // Title
+    // doc
+    //   .fontSize(30)
+    //   .text("Certificate of Achievement", 150, 100, { align: "center" });
+
+    // // Recipient Name
+    // doc
+    //   .fontSize(20)
+    //   .text(`This certifies that ${userName}`, { align: "center" });
+
+    // // Certificate Body Content
+    // doc
+    //   .moveDown()
+    //   .fontSize(16)
+    //   .text(
+    //     `has successfully completed the requirements for a payout of $${payoutAmount} on our trading platform.`,
+    //     { align: "center" }
+    //   );
+
+    // doc
+    //   .moveDown()
+    //   .fontSize(16)
+    //   .text(`Date of payout request: ${payoutDate}`, { align: "center" });
+
+    // // Add Social Media Links
+    // doc.moveDown().fontSize(12).text("Follow us on:", { align: "center" });
+    // doc.fontSize(12).text("Facebook | Twitter | Instagram", {
+    //   align: "center",
+    //   link: "https://facebook.com",
+    // });
     const doc = new PDFDocument({
       layout: "landscape",
       size: "A4",
@@ -55,7 +113,7 @@ const generateCertificate = async (req, res) => {
     const maxWidth = 200;
     const maxHeight = 90;
 
-    doc.image("assets/winners.png", doc.page.width / 2 - maxWidth / 2, 50, {
+    doc.image("assets/img/Logo.png", doc.page.width / 2 - maxWidth / 2, 50, {
       fit: [maxWidth, maxHeight],
       align: "center",
     });
@@ -63,7 +121,7 @@ const generateCertificate = async (req, res) => {
     jumpLine(doc, 5);
 
     doc
-      .font("fonts/NotoSansJP-Light.otf")
+      .font("assets/fonts/NotoSansJP-Light.otf")
       .fontSize(10)
       .fill("#021c27")
       .text("Super Course for Awesomes", {
@@ -74,7 +132,7 @@ const generateCertificate = async (req, res) => {
 
     // Content
     doc
-      .font("fonts/NotoSansJP-Regular.otf")
+      .font("assets/fonts/NotoSansJP-Regular.otf")
       .fontSize(16)
       .fill("#021c27")
       .text("CERTIFICATE OF COMPLETION", {
@@ -84,7 +142,7 @@ const generateCertificate = async (req, res) => {
     jumpLine(doc, 1);
 
     doc
-      .font("fonts/NotoSansJP-Light.otf")
+      .font("assets/fonts/NotoSansJP-Light.otf")
       .fontSize(10)
       .fill("#021c27")
       .text("Present to", {
@@ -94,7 +152,7 @@ const generateCertificate = async (req, res) => {
     jumpLine(doc, 2);
 
     doc
-      .font("fonts/NotoSansJP-Bold.otf")
+      .font("assets/fonts/NotoSansJP-Bold.otf")
       .fontSize(24)
       .fill("#021c27")
       .text(userName.toUpperCase(), {
@@ -104,7 +162,7 @@ const generateCertificate = async (req, res) => {
     jumpLine(doc, 1);
 
     doc
-      .font("fonts/NotoSansJP-Light.otf")
+      .font("assets/fonts/NotoSansJP-Light.otf")
       .fontSize(10)
       .fill("#021c27")
       .text("Successfully completed the Super Course for Awesomes.", {
@@ -144,7 +202,7 @@ const generateCertificate = async (req, res) => {
       .stroke();
 
     doc
-      .font("fonts/NotoSansJP-Bold.otf")
+      .font("assets/fonts/NotoSansJP-Bold.otf")
       .fontSize(10)
       .fill("#021c27")
       .text("Ramees Mohd", startLine1, signatureHeight + 10, {
@@ -156,7 +214,7 @@ const generateCertificate = async (req, res) => {
       });
 
     doc
-      .font("fonts/NotoSansJP-Light.otf")
+      .font("assets/fonts/NotoSansJP-Light.otf")
       .fontSize(10)
       .fill("#021c27")
       .text("Associate Professor", startLine1, signatureHeight + 25, {
@@ -168,7 +226,7 @@ const generateCertificate = async (req, res) => {
       });
 
     doc
-      .font("fonts/NotoSansJP-Bold.otf")
+      .font("assets/fonts/NotoSansJP-Bold.otf")
       .fontSize(10)
       .fill("#021c27")
       .text(
@@ -185,7 +243,7 @@ const generateCertificate = async (req, res) => {
       );
 
     doc
-      .font("fonts/NotoSansJP-Light.otf")
+      .font("assets/fonts/NotoSansJP-Light.otf")
       .fontSize(10)
       .fill("#021c27")
       .text("Student", startLine2, signatureHeight + 25, {
@@ -197,7 +255,7 @@ const generateCertificate = async (req, res) => {
       });
 
     doc
-      .font("fonts/NotoSansJP-Bold.otf")
+      .font("assets/fonts/NotoSansJP-Bold.otf")
       .fontSize(10)
       .fill("#021c27")
       .text("Sanoob Thadiyam", startLine3, signatureHeight + 10, {
@@ -209,7 +267,7 @@ const generateCertificate = async (req, res) => {
       });
 
     doc
-      .font("fonts/NotoSansJP-Light.otf")
+      .font("assets/fonts/NotoSansJP-Light.otf")
       .fontSize(10)
       .fill("#021c27")
       .text("Director", startLine3, signatureHeight + 25, {
@@ -222,58 +280,16 @@ const generateCertificate = async (req, res) => {
 
     jumpLine(doc, 4);
 
-    // Validation link
-    // const link =
-    //   'https://validate-your-certificate.hello/validation-code-here';
-
-    // const linkWidth = doc.widthOfString(link);
-    // const linkHeight = doc.currentLineHeight();
-
-    // doc
-    //   .underline(
-    //     doc.page.width / 2 - linkWidth / 2,
-    //     448,
-    //     linkWidth,
-    //     linkHeight,
-    //     { color: '#021c27' },
-    //   )
-    //   .link(
-    //     doc.page.width / 2 - linkWidth / 2,
-    //     448,
-    //     linkWidth,
-    //     linkHeight,
-    //     link,
-    //   );
-
-    // doc
-    //   .font('fonts/NotoSansJP-Light.otf')
-    //   .fontSize(10)
-    //   .fill('#021c27')
-    //   .text(
-    //     link,
-    //     doc.page.width / 2 - linkWidth / 2,
-    //     448,
-    //     linkWidth,
-    //     linkHeight
-    //   );
-
-    // Footer
-    const bottomHeight = doc.page.height - 130;
-    doc.image("assets/qr.png", doc.page.width / 2 - 30, bottomHeight, {
-      fit: [80, 80],
-    });
-
-    // doc.end();
-
-    // Collect PDF data in a buffer before sending headers
+    // Generate PDF buffer
     const pdfBuffer = await new Promise((resolve, reject) => {
       const buffers = [];
-      doc.on("data", (chunk) => buffers.push(chunk));
+      doc.on("data", buffers.push.bind(buffers));
       doc.on("end", () => resolve(Buffer.concat(buffers)));
-      doc.end(); // End the PDF generation before sending headers
+      doc.end(); // End the PDF generation
     });
+    console.log(pdfBuffer);
 
-    // Send the PDF data and headers in a single response
+    // Set response headers and send the PDF
     res.set({
       "Content-Type": "application/pdf",
       "Content-Disposition": 'inline; filename="certificate.pdf"',
@@ -285,4 +301,4 @@ const generateCertificate = async (req, res) => {
   }
 };
 
-module.exports = { generateCertificate };
+module.exports = generateCertificate;
