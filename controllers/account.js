@@ -16,7 +16,7 @@ const getAccountLists = async (req, res) => {
     //     .status(404)
     //     .json({ msg: "No accounts found for this user." });
     // }
-console.log(accounts);
+    console.log(accounts);
     res.status(200).json({ allAccounts: accounts });
   } catch (error) {
     console.error("Error fetching account lists:", error);
@@ -27,6 +27,7 @@ console.log(accounts);
 const getAllTheRequests = async (req, res) => {
   try {
     const accounts = await Account.find({ toNextStep: true })
+      .sort({ createdAt: -1 })
       .populate("userId", "first_name last_name email")
       .exec();
 
@@ -43,19 +44,17 @@ const toNextStage = async (req, res) => {
     const account = await Account.findOne({ _id: accountId });
 
     if (!account) {
-      return res.status(404).json({ msg: "Account not found." });
+      return res.status(404).json({ errMsg: "Account not found." });
     }
     if (account.status !== "Ongoing") {
       return res
         .status(400)
-        .json({ msg: `Account status is ${account.status}.` });
+        .json({ errMsg: `Account status is ${account.status}.` });
     }
     if (account.toNextStep) {
-      return res
-        .status(409)
-        .json({
-          msg: `You have already requested to move to the next step.`,
-        });
+      return res.status(409).json({
+        errMsg: `You have already requested to move to the next step.`,
+      });
     }
 
     const currentDate = new Date();

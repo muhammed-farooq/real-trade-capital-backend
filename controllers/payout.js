@@ -4,7 +4,6 @@ const User = require("../models/user");
 const CryptoJS = require("crypto-js");
 const Withdrawal = require("../models/withdrawal");
 ``;
-
 const encryptPassword = (password) => {
   const secretKey = process.env.PASSWORD_SALT;
   return CryptoJS.AES.encrypt(password, secretKey).toString();
@@ -37,8 +36,8 @@ const getPayoutRequestAdmin = async (req, res) => {
   try {
     const allPayoutRequests = await Payout.find({})
       .sort({
-        status: 1,
-        updatedAt: 1,
+        // status: 1,
+        updatedAt: -1,
       })
       .populate([
         { path: "account", select: "accountName" },

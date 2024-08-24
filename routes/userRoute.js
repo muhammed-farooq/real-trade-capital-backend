@@ -67,6 +67,7 @@ userRouter.get(
 );
 userRouter.post("/payout-account", verifyTokenUser, PayoutRequest);
 userRouter.get("/payout-user", verifyTokenUser, singleUserData);
+userRouter.get("/payout-certificate", verifyTokenUser, generateCertificate);
 
 userRouter.get("/withdrawal", verifyTokenUser, getAllWithdrawals);
 

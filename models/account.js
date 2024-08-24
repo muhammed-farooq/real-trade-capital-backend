@@ -24,6 +24,9 @@ const accountSchema = new mongoose.Schema(
     name: {
       type: String,
     },
+    note: {
+      type: String,
+    },
     phase: {
       type: String,
       default: "Phase One",
@@ -121,6 +124,10 @@ const accountSchema = new mongoose.Schema(
     },
     reasonForCancel: {
       type: String,
+    },
+    amountSize: {
+      type: String,
+      required: true,
     },
     status: {
       type: String,

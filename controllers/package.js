@@ -6,8 +6,7 @@ const fs = require("fs");
 let msg, errMsg;
 
 const packages = async (req, res) => {
-  try {
-    console.log("sksjdx");
+  try {;
     const packages = await Package.find({});
     console.log(packages[0].evaluationStage.PhaseOne);
     res.status(200).json({ packages });

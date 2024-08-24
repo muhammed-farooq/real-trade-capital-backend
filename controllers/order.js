@@ -29,11 +29,48 @@ const placeOrder = async (req, res) => {
   try {
     const { configureAccount, billingDetails, payment, user, package } =
       req.body;
-    console.log(configureAccount, billingDetails, payment, user, package);
 
+    // Validate required fields
+    if (!configureAccount || !billingDetails || !payment || !user || !package) {
+      return res
+        .status(400)
+        .send({ errMsg: "All required fields must be provided" });
+    }
+
+    // Validate configureAccount fields
+    if (
+      !configureAccount.price ||
+      !configureAccount.platform ||
+      !configureAccount.accountType ||
+      !configureAccount.accountSize
+    ) {
+      return res
+        .status(400)
+        .send({ errMsg: "Configuration account details are incomplete" });
+    }
+
+    // Validate billingDetails fields
+    if (
+      !billingDetails.firstName ||
+      !billingDetails.lastName ||
+      !billingDetails.phone ||
+      !billingDetails.mail ||
+      !billingDetails.street ||
+      !billingDetails.city ||
+      !billingDetails.postalCode
+    ) {
+      return res.status(400).send({ errMsg: "Billing details are incomplete" });
+    }
+
+    // Validate payment method
+    if (!payment) {
+      return res.status(400).send({ errMsg: "Payment method is required" });
+    }
+
+    // Check if user exists
     const userData = await User.findById(user);
     if (!userData) {
-      return res.status(404).send({ error: "User not found" });
+      return res.status(404).send({ errMsg: "User not found" });
     }
 
     // Update user details if necessary
@@ -46,12 +83,15 @@ const placeOrder = async (req, res) => {
       userData.address.postalCode = billingDetails.postalCode;
     if (!userData.address.country)
       userData.address.country = billingDetails.country;
-    if (!userData.address.country)
-      userData.address.country = billingDetails.country;
     await userData.save();
 
-    // Create a new order
+    // Fetch package details
     const packageData = await Package.findById({ _id: package });
+    if (!packageData) {
+      return res.status(404).send({ errMsg: "Package not found" });
+    }
+
+    // Create a new order
     const newOrder = new Order({
       name: `${billingDetails.firstName} ${billingDetails.lastName}`,
       userId: user,
@@ -91,6 +131,7 @@ const placeOrder = async (req, res) => {
       name: `${billingDetails.firstName} ${billingDetails.lastName}`,
       order: savedOrder._id,
       package,
+      amountSize: configureAccount.accountSize,
       platform: configureAccount.platform,
       step: configureAccount.accountType,
       mail: billingDetails.mail,
@@ -105,7 +146,7 @@ const placeOrder = async (req, res) => {
       .send({ msg: "Order placed successfully", order: savedOrder });
   } catch (error) {
     console.error(error.message);
-    res.status(500).send({ error: "Internal server error" });
+    res.status(500).send({ errMsg: "Internal server error" });
   }
 };
 
@@ -306,18 +347,18 @@ const cancelOrder = async (req, res) => {
     const order = await Order.findById(orderId);
     if (!order) {
       console.log(`Order not found for orderId: ${orderId}`);
-      return res.status(404).json({ error: "Order not found" });
+      return res.status(404).json({ errMsg: "Order not found" });
     }
     console.log("Order found:", order);
 
     const account = await Account.findOne({ order: orderId });
     if (!account) {
       console.log(`Account not found for orderId: ${orderId}`);
-      return res.status(404).json({ error: "Account not found" });
+      return res.status(404).json({ errMsg: "Account not found" });
     }
     console.log("Account found:", account);
     account.status = "Cancelled";
-    account.reasonForCancel = reason;
+    account.note = reason;
     account.orderCancelledAt = new Date();
     await account.save();
     console.log("Account updated and saved:", account);
@@ -325,7 +366,7 @@ const cancelOrder = async (req, res) => {
     // Update order status
     order.orderStatus = "Cancelled";
     account.orderCancelledAt = new Date();
-    order.reason = reason;
+    order.note = reason;
     await order.save();
     console.log("Order status updated and saved:", order);
 
@@ -334,7 +375,7 @@ const cancelOrder = async (req, res) => {
       .json({ success: true, msg: "Order Cancelled successfully" });
   } catch (error) {
     console.error("Error approving order:", error);
-    res.status(500).json({ success: false, error: "Internal server error" });
+    res.status(500).json({ success: false, errMsg: "Internal server error" });
   }
 };
 
@@ -350,14 +391,14 @@ const ApproveOrder = async (req, res) => {
     const order = await Order.findById(orderId);
     if (!order) {
       console.log(`Order not found for orderId: ${orderId}`);
-      return res.status(404).json({ error: "Order not found" });
+      return res.status(404).json({ errMsg: "Order not found" });
     }
     console.log("Order found:", order);
 
     const account = await Account.findOne({ order: orderId });
     if (!account) {
       console.log(`Account not found for orderId: ${orderId}`);
-      return res.status(404).json({ error: "Account not found" });
+      return res.status(404).json({ errMsg: "Account not found" });
     }
     console.log("Account found:", account);
 
@@ -402,7 +443,7 @@ const ApproveOrder = async (req, res) => {
     res.status(200).json({ success: true, msg: "Order approved successfully" });
   } catch (error) {
     console.error("Error approving order:", error);
-    res.status(500).json({ success: false, error: "Internal server error" });
+    res.status(500).json({ success: false, errMsg: "Internal server error" });
   }
 };
 
