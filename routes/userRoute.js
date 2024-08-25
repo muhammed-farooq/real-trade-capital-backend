@@ -19,7 +19,6 @@ const {
 } = require("../controllers/order");
 const { packages } = require("../controllers/package");
 const { getAccountLists, toNextStage } = require("../controllers/account");
-const generateCertificate = require("../controllers/certificate");
 const {
   getPayoutRequestOfUser,
   getAccountInPayoutRequest,
@@ -31,6 +30,10 @@ const {
   addWithdrawal,
   deleteWithdrawal,
 } = require("../controllers/withdrawal");
+const {
+  generatePayoutCertificate,
+  generateAccountCertificate,
+} = require("../controllers/certificate");
 const upload = multer.createMulter();
 
 const userRouter = express.Router();
@@ -68,7 +71,16 @@ userRouter.get(
 );
 userRouter.post("/payout-account", verifyTokenUser, PayoutRequest);
 userRouter.get("/payout-user", verifyTokenUser, singleUserData);
-userRouter.get("/payout-certificate/:id", verifyTokenUser, generateCertificate);
+userRouter.get(
+  "/payout-certificate/:id",
+  verifyTokenUser,
+  generatePayoutCertificate
+);
+userRouter.get(
+  "/account-certificate/:id",
+  verifyTokenUser,
+  generateAccountCertificate
+);
 
 userRouter.get("/withdrawal", verifyTokenUser, getAllWithdrawals);
 

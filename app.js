@@ -23,6 +23,5 @@ app.use(cors(corsOptions));
 app.use("/admin", adminRouter);
 app.use("/", userRouter);
 
-
-const port = process.env.DB_URL?process.env.DB_URL:4000;
+const port = process.env.DB_URL ? process.env.DB_URL : 4000;
 app.listen(port, () => console.log(`server is running in port ${port}`));

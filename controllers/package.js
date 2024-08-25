@@ -6,7 +6,7 @@ const fs = require("fs");
 let msg, errMsg;
 
 const packages = async (req, res) => {
-  try {;
+  try {
     const packages = await Package.find({});
     console.log(packages[0].evaluationStage.PhaseOne);
     res.status(200).json({ packages });
@@ -59,7 +59,7 @@ const addService = async (req, res) => {
 
 const editPackage = async (req, res) => {
   const { step, stepData } = req.body;
-  console.log(step,stepData);
+  console.log(step, stepData);
   try {
     if (stepData._id) {
       const result = await Package.updateOne(

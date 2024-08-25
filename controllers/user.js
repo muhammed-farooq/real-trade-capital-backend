@@ -78,6 +78,8 @@ const login = async (req, res) => {
         .status(401)
         .json({ errMsg: "You are not verified yet please check you male" });
     const token = generateToken(user._id, "user");
+    console.log(token);
+
     res.status(200).json({
       msg: "Login successfully",
       name: user?.name,
