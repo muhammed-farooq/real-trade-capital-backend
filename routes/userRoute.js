@@ -1,5 +1,10 @@
 const express = require("express");
-const { signup, login, profileDetails } = require("../controllers/user");
+const {
+  signup,
+  login,
+  profileDetails,
+  verifyMail,
+} = require("../controllers/user");
 const { verifyTokenUser } = require("../middlewares/auth");
 
 const multer = require("../config/multer");
@@ -36,6 +41,7 @@ const userRouter = express.Router();
 
 userRouter.post("/register", signup);
 userRouter.post("/login", login);
+userRouter.post("/verify-mail/:id", verifyMail);
 userRouter.get("/profile", verifyTokenUser, profileDetails);
 
 userRouter.get("/packages", packages);
@@ -82,6 +88,5 @@ userRouter.get(
 userRouter.get("/withdrawal", verifyTokenUser, getAllWithdrawals);
 
 userRouter.post("/useCoupon", verifyTokenUser, useCoupon);
-
 
 module.exports = userRouter;

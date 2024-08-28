@@ -137,6 +137,38 @@ const login = async (req, res) => {
   }
 };
 
+const verifyMail = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ errMsg: "User not found" });
+    }
+
+    if (user.isBanned) {
+      return res.status(403).json({ errMsg: "You are blocked" });
+    }
+
+    if (!user.isVerify) {
+      user.isVerify = true;
+      await user.save(); // Save the updated user document to the database
+      return res.status(200).json({
+        msg: "Your mail is verified",
+        email: user.email,
+      });
+    } else {
+      return res.status(200).json({
+        info: "You are already verified. You can sign in.",
+        email: user.email,
+      });
+    }
+  } catch (error) {
+    console.error("Error during email verification:", error);
+    res.status(504).json({ errMsg: "Gateway time-out" });
+  }
+};
+
 const allUsers = async (req, res) => {
   try {
     const userData = await User.find();
@@ -237,4 +269,5 @@ module.exports = {
   blockUser,
   unBlockUser,
   profileDetails,
+  verifyMail,
 };
