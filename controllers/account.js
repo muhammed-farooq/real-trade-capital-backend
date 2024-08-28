@@ -1,5 +1,8 @@
 const Account = require("../models/account");
 const CryptoJS = require("crypto-js");
+const User = require("../models/user");
+const { notification } = require("./common");
+
 ``;
 const encryptPassword = (password) => {
   const secretKey = process.env.PASSWORD_SALT;
@@ -152,7 +155,20 @@ const ApproveRequest = async (req, res) => {
     account.nextStep = "";
     account.toNextStep = false;
 
+    const user = await User.findById(account.userId);
+    if (!user) {
+      console.log(`Account not found for accountId: ${accountId}`);
+      return res.status(404).json({ error: "user not found" });
+    }
+    user.notifications.push(
+      notification(
+        "/dashboard",
+        "good",
+        `Your "${account.accountName}" successfully passed to ${account.phase}`
+      )
+    );
     await account.save();
+    await user.save();
     console.log("Account updated and saved:", account);
 
     res
@@ -175,10 +191,24 @@ const rejectRequest = async (req, res) => {
     console.log(reason);
     account.failedOn = new Date();
     account.reasonForReject = reason;
+    account.note = reason;
     account.nextStep = "";
     account.status = "Not Passed";
     account.toNextStep = false;
 
+    const user = await User.findById(account.userId);
+    if (!user) {
+      console.log(`Account not found for accountId: ${accountId}`);
+      return res.status(404).json({ error: "user not found" });
+    }
+    user.notifications.push(
+      notification(
+        "/dashboard",
+        "err",
+        `Your ${account.accountName} request rejected`
+      )
+    );
+    await user.save();
     await account.save();
     console.log("Account updated and saved:", account);
 

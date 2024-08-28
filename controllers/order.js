@@ -5,6 +5,7 @@ const Admin = require("../models/admin");
 const Account = require("../models/account");
 const CryptoJS = require("crypto-js");
 const Package = require("../models/package");
+const { notification } = require("./common");
 
 const stripe = Stripe(process.env.STRIPE_KEY);
 const encryptPassword = (password) => {
@@ -57,7 +58,8 @@ const placeOrder = async (req, res) => {
       !billingDetails.mail ||
       !billingDetails.street ||
       !billingDetails.city ||
-      !billingDetails.postalCode
+      !billingDetails.postalCode ||
+      !billingDetails.dateOfBirth
     ) {
       return res.status(400).send({ errMsg: "Billing details are incomplete" });
     }
@@ -83,6 +85,8 @@ const placeOrder = async (req, res) => {
       userData.address.postalCode = billingDetails.postalCode;
     if (!userData.address.country)
       userData.address.country = billingDetails.country;
+    if (!userData.dateOfBirth)
+      userData.dateOfBirth = billingDetails.dateOfBirth;
     await userData.save();
 
     // Fetch package details
@@ -105,6 +109,7 @@ const placeOrder = async (req, res) => {
       phone: billingDetails.phone,
       mail: billingDetails.mail,
       coupon: configureAccount?.coupon,
+      isCouponApplied: configureAccount.coupon ? true : false,
       couponRedusedAmount: configureAccount?.couponRedusedAmount,
       billingDetails: {
         title: billingDetails.title,
@@ -160,16 +165,6 @@ const getOrderLists = async (req, res) => {
     if (path == "/profile" || path == "/dashboard") limit = 5;
 
     if (role == "user") {
-      if (path == "/profile") {
-        orderList = await Order.find({ customerId: id })
-          .limit(limit)
-          .populate({ path: "providerId", select: "name" })
-          .sort({ orderCreatedAt: -1 });
-      } else {
-        orderList = await Order.find({ customerId: id })
-          .populate({ path: "providerId", select: "name" })
-          .sort({ orderCreatedAt: 1 });
-      }
     } else if (role == "admin") {
       orderList = await Order.find({})
         .skip(parseInt(skip))
@@ -177,6 +172,10 @@ const getOrderLists = async (req, res) => {
         .populate({
           path: "userId",
           select: "first_name last_name email phone",
+        })
+        .populate({
+          path: "coupon", // The field name in Order schema
+          select: "couponCode discountAmount expiryDate", // Specify fields from Coupon schema
         })
         .sort({ orderCreatedAt: -1 });
     }
@@ -360,14 +359,27 @@ const cancelOrder = async (req, res) => {
     account.status = "Cancelled";
     account.note = reason;
     account.orderCancelledAt = new Date();
-    await account.save();
-    console.log("Account updated and saved:", account);
 
     // Update order status
     order.orderStatus = "Cancelled";
     account.orderCancelledAt = new Date();
     order.note = reason;
+
+    const user = await User.findById(order.userId);
+    if (!user) {
+      return res.status(404).json({ error: "user not found" });
+    }
+    user.notifications.push(
+      notification(
+        "/dashboard",
+        "err",
+        `Your ${account.accountName} purchase ${order.orderStatus}`
+      )
+    );
+    await user.save();
     await order.save();
+    await account.save();
+    console.log("Account updated and saved:", account);
     console.log("Order status updated and saved:", order);
 
     res
@@ -387,20 +399,20 @@ const ApproveOrder = async (req, res) => {
 
     const { username, email, password, server, platform } = formValue;
     const hashedPassword = encryptPassword(password);
-
+    // const dateNow = Date;
     const order = await Order.findById(orderId);
     if (!order) {
       console.log(`Order not found for orderId: ${orderId}`);
       return res.status(404).json({ errMsg: "Order not found" });
     }
-    console.log("Order found:", order);
+    // console.log("Order found:", order);
 
     const account = await Account.findOne({ order: orderId });
     if (!account) {
       console.log(`Account not found for orderId: ${orderId}`);
       return res.status(404).json({ errMsg: "Account not found" });
     }
-    console.log("Account found:", account);
+    // console.log("Account found:", account);
 
     console.log(username, email, password, server, platform);
     account.PhaseOneCredentials = {
@@ -424,21 +436,67 @@ const ApproveOrder = async (req, res) => {
       currentDate.setDate(currentDate.getDate() + phaseOneMinTradingDays)
     );
 
-    await account.save();
-    console.log("Account updated and saved:", account);
+    // console.log("Account updated and saved:", account);
 
     // Update order status
     order.orderStatus = "Completed";
-    await order.save();
-    console.log("Order status updated and saved:", order);
+    // console.log("Order status updated and saved:", order);
 
     // Update user details if needed
     const user = await User.findById(account.userId);
+    console.log("dddddddddddddddddddddddddddddddddddddddd", user);
+
     if (user && !user.isPurchased) {
       user.isPurchased = true;
-      await user.save();
-      console.log("User status updated and saved:", user);
+
+      if (user.parent_affiliate) {
+        const referralUser = await User.findOne({
+          affiliate_id: user.parent_affiliate,
+        });
+
+        if (
+          referralUser &&
+          !isNaN(order.price) &&
+          !isNaN(referralUser.affiliate_share)
+        ) {
+          const referralAmount =
+            (order.price * referralUser.affiliate_share) / 100;
+          referralUser.wallet += referralAmount;
+          referralUser.affiliate_earned =
+            (referralUser.affiliate_earned || 0) + referralAmount;
+          referralUser.my_referrals.push({
+            user: user.email,
+            earned: referralAmount,
+            amountSize: account.amountSize,
+            date: new Date(),
+          });
+
+          console.log(referralUser);
+
+          await referralUser.save();
+        } else {
+          console.log(
+            "Invalid referral calculation due to NaN values",
+            order.price,
+            referralUser.affiliate_share,
+            "thsis ",
+            (order.price * referralUser.affiliate_share) / 100
+          );
+        }
+      }
     }
+    user.notifications.push(
+      notification(
+        "/dashboard",
+        "good",
+        `Your ${account.accountName} purchase ${order.orderStatus}`
+      )
+    );
+    console.log("dddddddddddddddddddddddddddddddddddddddd");
+    await account.save();
+    await order.save();
+    await user.save();
+    console.log("User status updated and saved:", user);
 
     res.status(200).json({ success: true, msg: "Order approved successfully" });
   } catch (error) {

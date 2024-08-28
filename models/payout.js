@@ -17,7 +17,6 @@ const payoutSchema = new mongoose.Schema(
     },
     platform: {
       type: String,
-      required: true,
     },
     TRC20Wallet: {
       type: String,
@@ -25,7 +24,6 @@ const payoutSchema = new mongoose.Schema(
     },
     step: {
       type: String,
-      required: true,
     },
     name: {
       type: String,
@@ -71,7 +69,9 @@ const payoutSchema = new mongoose.Schema(
       type: String,
     },
     mail: {
-      type: Number,
+      type: String,
+      lowercase: true,
+      trim: true,
     },
     txnId: {
       type: String,

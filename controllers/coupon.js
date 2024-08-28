@@ -23,7 +23,7 @@ const getCoupons = async (req, res) => {
 
 const getAllCoupons = async (req, res) => {
   try {
-    const coupons = await Coupon.find(); // Fetch all coupons
+    const coupons = await Coupon.find().sort({ createdAt: -1 }); // Fetch all coupons
 
     if (!coupons || coupons.length === 0) {
       return res.status(404).json({ errMsg: "No coupons found" });

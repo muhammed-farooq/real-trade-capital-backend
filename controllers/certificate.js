@@ -2,12 +2,13 @@ const PDFDocument = require("pdfkit"); // Ensure you have pdfkit installed
 const User = require("../models/user"); // Adjust the path according to your project structure
 const Payout = require("../models/payout"); // Adjust the path according to your project structure
 const path = require("path");
+const Account = require("../models/account");
 const generatePayoutCertificate = async (req, res) => {
   try {
-    const payoutId = req.params.id;
+    const accountId = req.params.id;
     const userId = req.payload.id;
 
-    if (!payoutId) {
+    if (!accountId) {
       return res.status(400).json({ errMsg: "Payout ID is undefined" });
     }
     if (!userId) {
@@ -28,17 +29,17 @@ const generatePayoutCertificate = async (req, res) => {
     const userName =
       `${userData.first_name} ${userData.last_name}`.toUpperCase();
 
-    // Find payout details using payoutId
-    const payoutDetails = await Payout.findById(payoutId, {
+    // Find payout details using accountId
+    const accountDetails = await Payout.findById(accountId, {
       amount: 1,
       requestedOn: 1,
     });
-    if (!payoutDetails) {
+    if (!accountDetails) {
       return res.status(404).json({ errMsg: "Payout not found" });
     }
 
-    const payoutAmount = payoutDetails.amount.toFixed(2); // Convert amount to two decimal places
-    const payoutDate = payoutDetails.requestedOn.toLocaleDateString(); // Format the date
+    const payoutAmount = accountDetails.amount.toFixed(2); // Convert amount to two decimal places
+    const payoutDate = accountDetails.requestedOn.toLocaleDateString(); // Format the date
 
     // Create a new PDF document
     // const doc = new PDFDocument({ layout: "landscape", size: "A4" });
@@ -302,11 +303,11 @@ const generatePayoutCertificate = async (req, res) => {
 };
 const generateAccountCertificate = async (req, res) => {
   try {
-    const payoutId = req.params.id;
+    const accountId = req.params.id;
     const userId = req.payload.id;
 
-    if (!payoutId) {
-      return res.status(400).json({ errMsg: "Payout ID is undefined" });
+    if (!accountId) {
+      return res.status(400).json({ errMsg: "Account ID is undefined" });
     }
     if (!userId) {
       return res.status(400).json({ errMsg: "User ID is undefined" });
@@ -326,19 +327,18 @@ const generateAccountCertificate = async (req, res) => {
     const userName =
       `${userData.first_name} ${userData.last_name}`.toUpperCase();
 
-    // Find payout details using payoutId
-    const payoutDetails = await Payout.findById(payoutId, {
+    // Find payout details using accountId
+    const accountDetails = await Account.findById(accountId, {
       amount: 1,
       requestedOn: 1,
     });
-    if (!payoutDetails) {
-      return res.status(404).json({ errMsg: "Payout not found" });
+    if (!accountDetails) {
+      return res.status(404).json({ errMsg: "Account not found" });
     }
 
-    const payoutAmount = payoutDetails.amount.toFixed(2); // Convert amount to two decimal places
-    const payoutDate = payoutDetails.requestedOn.toLocaleDateString(); // Format the date
+    // const accountAmount = accountDetails.amount.toFixed(2);
+    // const accountDate = accountDetails.requestedOn.toLocaleDateString();
 
-    // Create a new PDF document
     // const doc = new PDFDocument({ layout: "landscape", size: "A4" });
     // const imagePath = path.join(__dirname, "../assets/img/Logo.png");
     // console.log("Image Path:", imagePath);

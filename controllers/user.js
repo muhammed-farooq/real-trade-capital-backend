@@ -3,61 +3,106 @@ const sha256 = require("js-sha256");
 const fs = require("fs");
 const cloudinary = require("../config/cloudinary");
 const mime = require("mime-types");
-
+const Joi = require("joi");
 const { generateToken } = require("../middlewares/auth");
+const { Resend } = require("resend");
 
+const resend = new Resend(process.env.RESEND_SECRET_KEY);
 let msg, errMsg;
+
+const signupSchema = Joi.object({
+  firstName: Joi.string().min(1).required(),
+  lastName: Joi.string().min(1).required(),
+  email: Joi.string().email().required(),
+  password: Joi.string().min(8).required(), // Ensuring password has at least 8 characters
+  referralCode: Joi.string().allow("").optional(),
+});
 
 const signup = async (req, res) => {
   try {
     const { firstName, lastName, email, password, referralCode } = req.body;
-    console.log(firstName, lastName, email, password, referralCode);
+
+    // Validate the incoming request body against the schema
+    const { error } = signupSchema.validate({
+      firstName,
+      lastName,
+      email,
+      password,
+      referralCode,
+    });
+
+    if (error) {
+      return res.status(400).json({ errMsg: error.details[0].message });
+    }
+
     // Check if the user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(409).json({ errMsg: "User already exists" });
     }
-    console.log("yo1");
 
-    // Generate a unique referral number
     const timestamp = Date.now();
     const randomNum = Math.floor(Math.random() * 1000);
     const timestampPart = timestamp.toString().slice(-4);
     const randomNumPart = randomNum.toString().padStart(3, "0");
     const referralNumber = `#${timestampPart}${randomNumPart}`;
-    console.log("yo2");
 
     // Create new user
     const newUser = new User({
       first_name: firstName,
       last_name: lastName,
       email,
-      password: sha256(password + process.env.PASSWORD_SALT),
+      password: sha256(password + process.env.PASSWORD_SALT), // Hashing the password
       affiliate_id: referralNumber,
-      parent_affiliate: referralCode || "none",
+      parent_affiliate: referralCode || "",
+      is_affiliate: !!referralCode, // Boolean conversion
     });
 
     await newUser.save();
-    console.log("yo2");
 
-    // Handle referral code
-    if (referralCode) {
-      console.log("yo7777");
+    // Send verification email after user is created
+    const verificationLink = `https://yourdomain.com/mail-verify/${newUser._id}`;
 
-      const referralUser = await User.findOne({ affiliate_id: referralCode });
-      if (!referralUser) {
-        return res.status(200).json({ errMsg: "Invalid referral code" });
-      }
-
-      referralUser.wallet += 50; // Add bonus to referrer
-      referralUser.my_referrals.push(newUser._id); // Add new user to referrer's referrals
-      await referralUser.save();
+    const htmlContent = `
+      <html>
+      <body style="font-family: Arial, sans-serif; background-color: #f7f7f7; padding: 20px; margin: 0;">
+        <div style="max-width: 600px; margin: auto; background-color: #ffffff; padding: 20px; border-radius: 8px;">
+          <h2 style="color: #333333; text-align: center;">Welcome to Our Service, ${firstName}!</h2>
+          <p style="color: #555555;">Thank you for signing up. Please confirm your email address by clicking the button below:</p>
+          <div style="text-align: center; margin: 20px 0;">
+            <a href="${verificationLink}" style="display: inline-block; padding: 10px 20px; color: white; background-color: #007bff; border-radius: 5px; text-decoration: none;">Confirm Email</a>
+          </div>
+          <p style="color: #555555;">If you did not sign up for this account, you can safely ignore this email.</p>
+          <hr style="border: 0; border-top: 1px solid #eeeeee; margin: 20px 0;">
+          <footer style="color: #999999; text-align: center;">
+            <p>&copy; ${new Date().getFullYear()} Your Company. All rights reserved.</p>
+            <p>
+              <a href="https://yourcompany.com" style="color: #007bff; text-decoration: none;">Visit our website</a> | 
+              <a href="https://yourcompany.com/unsubscribe" style="color: #007bff; text-decoration: none;">Unsubscribe</a>
+            </p>
+          </footer>
+        </div>
+      </body>
+      </html>
+    `;
+    try {
+      await resend.emails.send({
+        from: "chcheri459@gmail.com",
+        to: "farooqp9207@gmail.com",
+        subject: "Verification mail from REAL TRADE CAPITAL",
+        html: htmlContent, // Send the HTML content
+      });
+      console.log("Verification email sent successfully.");
+    } catch (emailError) {
+      console.error("Error sending email:", emailError);
+      return res
+        .status(500)
+        .json({ errMsg: "Failed to send verification email." });
     }
-    console.log("yo3");
 
     res.status(200).json({ msg: "Registration Success" });
   } catch (error) {
-    console.log(error);
+    console.error("Error during registration:", error);
     res.status(504).json({ msg: "Gateway time-out" });
   }
 };
@@ -75,11 +120,10 @@ const login = async (req, res) => {
       return res.status(401).json({ errMsg: "You are blocked" });
     if (!user.isVerify)
       return res
-        .status(401)
-        .json({ errMsg: "You are not verified yet please check you male" });
+        .status(201)
+        .json({ info: "You are not verified yet please check you male" });
     const token = generateToken(user._id, "user");
     console.log(token);
-
     res.status(200).json({
       msg: "Login successfully",
       name: user?.name,
@@ -105,12 +149,9 @@ const allUsers = async (req, res) => {
 
 const profileDetails = async (req, res) => {
   try {
-    const userData = await User.findOne({ _id: req.payload.id }).populate({
-      path: "walletHistory.from",
-      select: "name",
-    });
+    const userData = await User.findOne({ _id: req.payload.id });
     //   userData?userData.walletHistory = userData.walletHistory.slice(-5):res.status(400).json({ errMsg:'User not found'});
-    console.log(userData.walletHistory);
+    console.log(userData.notifications);
     userData
       ? res.status(200).json({ userData })
       : res.status(400).json({ errMsg: "User not found" });

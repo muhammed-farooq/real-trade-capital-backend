@@ -1,10 +1,5 @@
 const express = require("express");
-const {
-  signup,
-  login,
-  profileDetails,
-  editUser,
-} = require("../controllers/user");
+const { signup, login, profileDetails } = require("../controllers/user");
 const { verifyTokenUser } = require("../middlewares/auth");
 
 const multer = require("../config/multer");
@@ -14,26 +9,27 @@ const {
   paymentStatusHandle,
   getOrderLists,
   getOrderData,
-  cancelOrder,
   placeOrder,
 } = require("../controllers/order");
+
 const { packages } = require("../controllers/package");
+
 const { getAccountLists, toNextStage } = require("../controllers/account");
+
 const {
   getPayoutRequestOfUser,
   getAccountInPayoutRequest,
   singleUserData,
   PayoutRequest,
+  affiliatePayoutRequest,
 } = require("../controllers/payout");
-const {
-  getAllWithdrawals,
-  addWithdrawal,
-  deleteWithdrawal,
-} = require("../controllers/withdrawal");
+const { getAllWithdrawals } = require("../controllers/withdrawal");
 const {
   generatePayoutCertificate,
   generateAccountCertificate,
 } = require("../controllers/certificate");
+const { useCoupon } = require("../controllers/coupon");
+
 const upload = multer.createMulter();
 
 const userRouter = express.Router();
@@ -70,6 +66,7 @@ userRouter.get(
   getAccountInPayoutRequest
 );
 userRouter.post("/payout-account", verifyTokenUser, PayoutRequest);
+userRouter.post("/payout-affiliate", verifyTokenUser, affiliatePayoutRequest);
 userRouter.get("/payout-user", verifyTokenUser, singleUserData);
 userRouter.get(
   "/payout-certificate/:id",
@@ -83,5 +80,8 @@ userRouter.get(
 );
 
 userRouter.get("/withdrawal", verifyTokenUser, getAllWithdrawals);
+
+userRouter.post("/useCoupon", verifyTokenUser, useCoupon);
+
 
 module.exports = userRouter;

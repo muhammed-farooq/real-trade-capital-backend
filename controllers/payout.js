@@ -3,7 +3,9 @@ const Payout = require("../models/payout");
 const User = require("../models/user");
 const CryptoJS = require("crypto-js");
 const Withdrawal = require("../models/withdrawal");
+const { notification } = require("./common");
 ``;
+
 const encryptPassword = (password) => {
   const secretKey = process.env.PASSWORD_SALT;
   return CryptoJS.AES.encrypt(password, secretKey).toString();
@@ -17,7 +19,7 @@ const getPayoutRequestOfUser = async (req, res) => {
     const allPayoutRequests = await Payout.find({
       userId: userId,
     })
-      .sort({ updatedAt: 1 })
+      .sort({ updatedAt: -1 })
       .populate({ path: "account", select: "accountName" });
 
     // if (!allPayoutRequests.length) {
@@ -32,6 +34,7 @@ const getPayoutRequestOfUser = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
 const getPayoutRequestAdmin = async (req, res) => {
   try {
     const allPayoutRequests = await Payout.find({})
@@ -39,10 +42,24 @@ const getPayoutRequestAdmin = async (req, res) => {
         // status: 1,
         updatedAt: -1,
       })
-      .populate([
-        { path: "account", select: "accountName" },
-        { path: "userId", select: "email" },
-      ]);
+      .populate([{ path: "account", select: "accountName" }]);
+
+    // const allPayoutRequests = await Payout.find({})
+    //   .sort({
+    //     updatedAt: -1,
+    //   })
+    //   .populate([
+    //     {
+    //       path: "account",
+    //       select: "accountName",
+    //       // Ensure that the `account` field can be null or undefined
+    //       match: { account: { $exists: true, $ne: null } },
+    //     },
+    //     {
+    //       path: "userId",
+    //       select: "email",
+    //     },
+    //   ]);
     console.log(allPayoutRequests);
 
     res.status(200).json({ allPayoutRequests: allPayoutRequests });
@@ -126,16 +143,16 @@ const PayoutRequest = async (req, res) => {
     }
     account.withdrawIng = true;
 
-    await account.save();
-
     // Create new payout request
     const newPayout = new Payout({
       name: userData.first_name + userData.last_name,
       userId: userId,
       account: accountId,
       paymentMethod: method,
+      mail: userData.email,
       platform: account.platform,
       step: account.step,
+      
       requestedOn: new Date(),
       TRC20Wallet,
       amount,
@@ -143,6 +160,8 @@ const PayoutRequest = async (req, res) => {
     });
 
     const savedRequest = await newPayout.save();
+    await account.save();
+
     if (savedRequest) {
       return res
         .status(200)
@@ -189,7 +208,7 @@ const ApprovePayout = async (req, res) => {
     const account = await Account.findOne({ _id: payout.account });
     if (!account) {
       console.log(`Account not found for accountId: ${payout.account}`);
-      return res.status(404).json({ error: "Account not found" });
+      return res.status(404).json({ errMsg: "Account not found" });
     }
     console.log(txnId, note);
     payout.approvedDate = new Date();
@@ -206,7 +225,21 @@ const ApprovePayout = async (req, res) => {
     payout.note = note;
     account.fondedAccountNo = account.fondedAccountNo + 1;
     account.withdrawsAmount = account.withdrawsAmount + payout.amount;
+    account.withdrawIng = false;
 
+    const user = await User.findById(payout.userId);
+    if (!user) {
+      console.log(`Account not found for accountI`);
+      return res.status(404).json({ error: "user not found" });
+    }
+    user.notifications.push(
+      notification(
+        "/dashboard/payouts",
+        "good",
+        `$${payout.amount} withdrawal from ${account.accountName} ${payout.status}`
+      )
+    );
+    await user.save();
     await payout.save();
     console.log("payout updated and saved:", payout);
     await account.save();
@@ -229,7 +262,7 @@ const ApprovePayout = async (req, res) => {
       .json({ success: true, msg: "Payout approved successfully" });
   } catch (error) {
     console.error("Error approving order:", error);
-    res.status(500).json({ success: false, error: "Internal server error" });
+    res.status(500).json({ success: false, errMsg: "Internal server error" });
   }
 };
 
@@ -239,14 +272,44 @@ const rejectPayout = async (req, res) => {
     const payout = await Payout.findOne({ _id: payoutId });
     if (!payout) {
       console.log(`Payout not found for payoutId: ${payoutId}`);
-      return res.status(404).json({ error: "Payout not found" });
+      return res.status(404).json({ errMsg: "Payout not found" });
     }
     console.log(note);
     payout.payoutCancelledAt = new Date();
     payout.note = note;
     payout.txnStatus = "Cancelled";
     payout.status = "Cancelled";
-
+    const user = await User.findById(payout.userId);
+    if (!user) {
+      console.log(`Account not found for accountI`);
+      return res.status(404).json({ error: "user not found" });
+    }
+    if (payout.account) {
+      const account = await Account.findOne({ _id: payout.account });
+      if (!account) {
+        return res.status(404).json({ errMsg: "Account not found" });
+      }
+      user.notifications.push(
+        notification(
+          "/dashboard/payouts",
+          "err",
+          `$${payout.amount} withdrawal from ${account.accountName} ${payout.status}`
+        )
+      );
+      account.withdrawIng = false;
+      await account.save();
+    }
+    if (payout.isAffiliate) {
+      user.notifications.push(
+        notification(
+          "/dashboard/payouts",
+          "err",
+          `$${payout.amount} withdrawal from affiliation ${payout.status}`
+        )
+      );
+      user.withdrawIng = false;
+    }
+    await user.save();
     await payout.save();
     console.log("Payout updated and saved:", payout);
 
@@ -255,13 +318,165 @@ const rejectPayout = async (req, res) => {
       .json({ success: true, msg: "Payout rejected successfully" });
   } catch (error) {
     console.error("Error approving order:", error);
-    res.status(500).json({ success: false, error: "Internal server error" });
+    res.status(500).json({ success: false, errMsg: "Internal server error" });
+  }
+};
+
+const affiliatePayoutRequest = async (req, res) => {
+  try {
+    const userId = req.payload.id;
+    const { amount, method, TRC20Wallet } = req.body.formValue;
+    console.log(amount, method, TRC20Wallet);
+
+    // Validate the request data
+    if (!amount) return res.status(400).json({ errMsg: "Amount is required" });
+    if (isNaN(amount) || amount <= 0)
+      return res.status(400).json({ errMsg: "Invalid amount" });
+    if (!method)
+      return res.status(400).json({ errMsg: "Payment method is required" });
+    if (!TRC20Wallet)
+      return res
+        .status(400)
+        .json({ errMsg: "TRC20 Wallet address is required" });
+
+    // Fetch user data
+    const userData = await User.findById(userId);
+    if (!userData) return res.status(404).send({ errMsg: "User not found" });
+    if (userData.isBanned)
+      return res.status(403).send({ errMsg: "You are banned" });
+    if (!userData.isVerify)
+      return res.status(403).send({ errMsg: "You are not verified" });
+
+    if (userData.wallet < amount) {
+      return res.status(400).json({ errMsg: "You don't have enough amount" });
+    }
+    if (userData.withdrawIng) {
+      return res
+        .status(400)
+        .json({ errMsg: "You all ready requested wait for the approval" });
+    }
+
+    userData.withdrawIng = true;
+
+    const newPayout = new Payout({
+      name: userData.first_name + userData.last_name,
+      mail: userData.email,
+      userId: userId,
+      paymentMethod: method,
+      requestedOn: new Date(),
+      TRC20Wallet,
+      amount,
+      isAffiliate: true,
+    });
+    console.log(newPayout, userData);
+
+    await userData.save();
+    const savedRequest = await newPayout.save();
+    if (savedRequest) {
+      return res
+        .status(200)
+        .json({ msg: "Your request has been submitted successfully" });
+    } else {
+      return res
+        .status(500)
+        .json({ errMsg: "Failed to submit the payout request" });
+    }
+  } catch (error) {
+    console.error("Error processing payout request:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+const affiliateApprovePayout = async (req, res) => {
+  try {
+    const { formValue, payoutId, userId } = req.body;
+
+    const { txnId, note } = formValue;
+
+    // Basic validation checks
+    if (!formValue || !payoutId || !txnId) {
+      console.log(`Form data missing or incomplete: payoutId: ${payoutId}`);
+      return res
+        .status(400)
+        .json({ errMsg: "Please fill out all required fields." });
+    }
+
+    // Find the payout by ID
+    const payout = await Payout.findById(payoutId);
+    if (!payout) {
+      console.log(`Payout not found for payoutId: ${payoutId}`);
+      return res.status(404).json({ errMsg: "Payout not found." });
+    }
+
+    // Find the user by ID
+    const user = await User.findById(userId);
+    if (!user) {
+      console.log(`User not found for userId: ${userId}`);
+      return res.status(404).json({ errMsg: "User not found." });
+    }
+
+    // Update payout details
+    payout.approvedDate = new Date();
+    payout.txnStatus = "Processed";
+    payout.status = "Processed";
+    payout.txnId = txnId;
+    payout.note = note;
+
+    // Update user's wallet and affiliate payout tracking
+    if (!isNaN(payout.amount)) {
+      user.affiliate_paidOut += payout.amount;
+      user.wallet -= payout.amount;
+      user.withdrawIng = false;
+    } else {
+      console.log("Payout amount is not a valid number:", payout.amount);
+      return res.status(400).json({ errMsg: "Invalid payout amount." });
+    }
+    user.notifications.push(
+      notification(
+        "/dashboard/payouts",
+        "good",
+        `$${payout.amount} withdrawal from affiliation ${payout.status}`
+      )
+    );
+
+    // Log the updated payout
+    console.log(
+      "Payout updated and saved:",
+      user.affiliate_paidOut,
+      user.wallet
+    );
+
+    // Create a new withdrawal record
+    const newWithdrawal = new Withdrawal({
+      name: payout.name,
+      userId: payout.userId,
+      paymentMethod: payout.paymentMethod,
+      txnId: payout.txnId,
+      amount: payout.amount,
+      isAffiliate: payout.isAffiliate,
+    });
+
+    // Save changes to the database
+    await newWithdrawal.save();
+    await payout.save();
+    await user.save();
+
+    // Respond with success
+    return res
+      .status(200)
+      .json({ success: true, msg: "Payout approved successfully." });
+  } catch (error) {
+    console.error("Error approving payout:", error);
+    return res
+      .status(500)
+      .json({ success: false, errMsg: "Internal server error." });
   }
 };
 
 const singleUserData = async (req, res) => {
   try {
     const userData = await User.findById(req.payload.id);
+    console.log(userData.notifications);
     if (!userData) {
       return res.status(404).send({ errMsg: "User not found" });
     } else if (userData?.isBanned) {
@@ -284,4 +499,6 @@ module.exports = {
   PayoutRequest,
   ApprovePayout,
   rejectPayout,
+  affiliatePayoutRequest,
+  affiliateApprovePayout,
 };

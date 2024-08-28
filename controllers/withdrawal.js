@@ -39,13 +39,11 @@ const addWithdrawal = async (req, res) => {
 
     const saveWithdrawal = await newWithdrawal.save();
     if (saveWithdrawal) {
-      res
-        .status(200)
-        .json({
-          success: true,
-          withdrawal: newWithdrawal,
-          msg: "Withdrawal added successfully",
-        });
+      res.status(200).json({
+        success: true,
+        withdrawal: newWithdrawal,
+        msg: "Withdrawal added successfully",
+      });
     } else {
       return res.status(500).json({ errMsg: "Failed to add withdrawal" });
     }
@@ -70,13 +68,11 @@ const deleteWithdrawal = async (req, res) => {
       return res.status(404).json({ error: "Withdrawal not found" });
     }
 
-    res
-      .status(200)
-      .json({
-        success: true,
-        withdrawal,
-        msg: "Withdrawal deleted successfully",
-      });
+    res.status(200).json({
+      success: true,
+      withdrawal,
+      msg: "Withdrawal deleted successfully",
+    });
   } catch (error) {
     console.error("Error deleting withdrawal:", error);
     res.status(500).json({ success: false, error: "Internal server error" });
@@ -85,7 +81,7 @@ const deleteWithdrawal = async (req, res) => {
 
 const getAllWithdrawals = async (req, res) => {
   try {
-    const withdrawals = await Withdrawal.find(); // Fetch all withdrawals
+    const withdrawals = await Withdrawal.find().sort({ createdAt: -1 }); // Fetch all withdrawals
 
     if (!withdrawals || withdrawals.length === 0) {
       return res.status(404).json({ error: "No withdrawals found" });

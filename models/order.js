@@ -16,7 +16,8 @@ const orderSchema = new mongoose.Schema(
       required: true,
     },
     coupon: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Coupon",
     },
     couponRedusedAmount: {
       type: Number,
