@@ -79,10 +79,10 @@ const getAccountInPayoutRequest = async (req, res) => {
     const accountsPayout = await Account.find({
       userId: userId,
       status: "Passed",
-      // isBanned: false,
-      // withdrawIng: false,
+      isBanned: false,
+      withdrawIng: false,
       phase: "Funded",
-      // "MinimumTradingDays.Funded": { $lte: currentDate },
+      "MinimumTradingDays.Funded": { $lte: currentDate },
     })
       .sort({ updatedAt: 1 })
       .select("userId step accountName passedOn FundedStageCredentials");
@@ -125,7 +125,7 @@ const PayoutRequest = async (req, res) => {
     if (userData.isBanned)
       return res
         .status(403)
-        .send({ errMsg: "You are banned from making requests" });
+        .send({ errMsg: "You are banned from making requests" ,timeout:true});
 
     // Fetch account data
     const account = await Account.findOne({
@@ -133,7 +133,7 @@ const PayoutRequest = async (req, res) => {
       status: "Passed",
       phase: "Funded",
       isBanned: false,
-      // "MinimumTradingDays.Funded": { $lte: new Date() },
+      "MinimumTradingDays.Funded": { $lte: new Date() },
     }).sort({ updatedAt: 1 });
 
     if (!account) {
@@ -343,9 +343,9 @@ const affiliatePayoutRequest = async (req, res) => {
     const userData = await User.findById(userId);
     if (!userData) return res.status(404).send({ errMsg: "User not found" });
     if (userData.isBanned)
-      return res.status(403).send({ errMsg: "You are banned" });
+      return res.status(403).send({ errMsg: "You are banned" ,timeout:true});
     if (!userData.isVerify)
-      return res.status(403).send({ errMsg: "You are not verified" });
+      return res.status(403).send({ errMsg: "You are not verified" ,timeout:true});
 
     if (userData.wallet < amount) {
       return res.status(400).json({ errMsg: "You don't have enough amount" });
@@ -482,7 +482,7 @@ const singleUserData = async (req, res) => {
     } else if (userData?.isBanned) {
       return res
         .status(404)
-        .send({ errMsg: "You can not request", isBanned: true });
+        .send({ errMsg: "You can not request", isBanned: true,timeout:true });
     }
     res.status(200).json({ userData });
   } catch (error) {

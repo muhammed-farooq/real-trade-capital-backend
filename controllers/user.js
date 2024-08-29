@@ -117,11 +117,11 @@ const login = async (req, res) => {
     if (!passwordCheck)
       return res.status(401).json({ errMsg: "Password doesn't match" });
     if (user.isBanned)
-      return res.status(401).json({ errMsg: "You are blocked" });
+      return res.status(401).json({ errMsg: "You are blocked" ,timeout:true});
     if (!user.isVerify)
       return res
         .status(201)
-        .json({ info: "You are not verified yet please check you male" });
+        .json({ info: "You are not verified yet please check you male" ,timeout:true});
     const token = generateToken(user._id, "user");
     console.log(token);
     res.status(200).json({
@@ -147,7 +147,7 @@ const verifyMail = async (req, res) => {
     }
 
     if (user.isBanned) {
-      return res.status(403).json({ errMsg: "You are blocked" });
+      return res.status(403).json({ errMsg: "You are blocked" ,timeout:true});
     }
 
     if (!user.isVerify) {
