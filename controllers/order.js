@@ -1,13 +1,26 @@
 const Stripe = require("stripe");
 const Order = require("../models/order");
 const User = require("../models/user");
-const Admin = require("../models/admin");
 const Account = require("../models/account");
 const CryptoJS = require("crypto-js");
 const Package = require("../models/package");
 const { notification } = require("./common");
+const TronWeb = require("tronweb");
+const USDT_CONTRACT_ADDRESS = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
 
-const stripe = Stripe(process.env.STRIPE_KEY);
+// // Function to create a new TronWeb instance
+const createTronWebInstance = (privateKey) => {
+  return new TronWeb({
+    fullHost: "https://api.trongrid.io",
+    privateKey: privateKey,
+  });
+};
+
+// Function to initialize USDT contract
+const initializeUsdtContract = async (tronWebInstance) => {
+  return await tronWebInstance.contract().at(USDT_CONTRACT_ADDRESS);
+};
+
 const encryptPassword = (password) => {
   const secretKey = process.env.PASSWORD_SALT;
   return CryptoJS.AES.encrypt(password, secretKey).toString();
@@ -68,13 +81,20 @@ const placeOrder = async (req, res) => {
     if (!payment) {
       return res.status(400).send({ errMsg: "Payment method is required" });
     }
-
     // Check if user exists
     const userData = await User.findById(user);
     if (!userData) {
       return res.status(404).send({ errMsg: "User not found" });
     }
-
+    const packageData = await Package.findById({ _id: package });
+    if (!packageData) {
+      return res.status(404).send({ errMsg: "Package not found" });
+    }
+    const tronWebInstance = createTronWebInstance(process.env.PRIVATE_KEY);
+    const account = await tronWebInstance.createAccount(); // Create a new TRX account for this payment
+    const paymentAddress = account.address.base58;
+    const privateKey = account.privateKey;
+    // const address =await
     // Update user details if necessary
     if (!userData.phone) userData.phone = billingDetails.phone;
     if (!userData.address) userData.address = {};
@@ -90,16 +110,14 @@ const placeOrder = async (req, res) => {
     await userData.save();
 
     // Fetch package details
-    const packageData = await Package.findById({ _id: package });
-    if (!packageData) {
-      return res.status(404).send({ errMsg: "Package not found" });
-    }
 
     // Create a new order
-    const newOrder = new Order({
+    const newOrderData = {
       name: `${billingDetails.firstName} ${billingDetails.lastName}`,
       userId: user,
       package,
+      privateKey,
+      paymentAddress,
       price: configureAccount.price,
       platform: configureAccount.platform,
       step: configureAccount.accountType,
@@ -108,18 +126,23 @@ const placeOrder = async (req, res) => {
       country: billingDetails.country,
       phone: billingDetails.phone,
       mail: billingDetails.mail,
-      coupon: configureAccount?.coupon,
-      isCouponApplied: configureAccount.coupon ? true : false,
-      couponRedusedAmount: configureAccount?.couponRedusedAmount,
+      isCouponApplied: !!configureAccount.coupon, // double exclamation marks to ensure it's a boolean
+      couponRedusedAmount: configureAccount.couponRedusedAmount, // can remain as is
       billingDetails: {
         title: billingDetails.title,
         postalCode: billingDetails.postalCode,
         country: billingDetails.country,
         city: billingDetails.city,
         street: billingDetails.street,
-        dateOfBirth: billingDetails?.dateOfBirth,
+        dateOfBirth: billingDetails.dateOfBirth,
       },
-    });
+    };
+
+    // Conditionally add the coupon field if it exists
+    if (configureAccount.coupon) {
+      newOrderData.coupon = configureAccount.coupon;
+    }
+    const newOrder = new Order(newOrderData);
     const savedOrder = await newOrder.save();
 
     // Create a new account
@@ -146,9 +169,11 @@ const placeOrder = async (req, res) => {
     });
     await newAccount.save();
 
-    res
-      .status(201)
-      .send({ msg: "Order placed successfully", order: savedOrder });
+    res.status(201).send({
+      msg: "Order placed successfully",
+      orderId: newOrder._id,
+      paymentAddress,
+    });
   } catch (error) {
     console.error(error.message);
     res.status(500).send({ errMsg: "Internal server error" });
@@ -167,8 +192,8 @@ const getOrderLists = async (req, res) => {
     if (role == "user") {
     } else if (role == "admin") {
       orderList = await Order.find({})
-        .skip(parseInt(skip))
-        .limit(limit)
+        // .skip(parseInt(skip))
+        // .limit(limit)
         .populate({
           path: "userId",
           select: "first_name last_name email phone",
@@ -210,132 +235,73 @@ const getOrderData = async (req, res) => {
         : res.status(504).json({ errMsg: "Somthig wrong" });
     }
   } catch (error) {
+    console.log(error);
+
     res.status(504).json({ errMsg: "Invalid Id Check the path" });
   }
 };
 
-const paymentModeHandle = async (req, res) => {
+const paymentCheck = async (req, res) => {
   try {
-    const { method } = req.query;
-    const orderDetails = req.body;
-    console.log(method);
-    console.log(orderDetails);
-    if (method === "strip") {
-      const queryParams = new URLSearchParams({
-        status: "success",
-        orderDetail: JSON.stringify(orderDetails),
-      });
-      const date = new Date();
-      const user = await stripe.customers.create({
-        metadata: {
-          userId: orderDetails.customerId,
-          orderCreatAt: date,
-          price: orderDetails.grandTotal,
-        },
-      });
-      const session = await stripe.checkout.sessions.create({
-        customer: user.id,
-        line_items: [
-          {
-            price_data: {
-              currency: "inr",
-              product_data: {
-                name: `Total grand price: ${orderDetails.grandTotal} INR `,
-                metadata: {
-                  id: orderDetails.option[0]._id,
-                  gandTotal: orderDetails.grandTotal,
-                },
-              },
-              unit_amount:
-                orderDetails.grandTotal > 999999
-                  ? 999999 * 100
-                  : orderDetails.grandTotal * 100,
-            },
-            quantity: 1,
-          },
-        ],
-        mode: "payment",
-        payment_method_types: ["card"], // Specify 'card' to allow credit card payments
-        success_url: `${process.env.SERVER_URL}/payment?${queryParams}`,
-        cancel_url: `${process.env.CLIENT_URL}/payments?status=false`,
-      });
-      res.send({ url: session.url });
+    const { id } = req.params;
+    if (id) {
+      const orderData = await Order.findById(id);
+      // console.log(orderData);
+      if (orderData && orderData.paymentAddress) {
+        const result = await checkAndTransferPayment(orderData);
+        if (result) {
+          orderData.txnStatus = "Completed";
+          await orderData.save();
+          console.log("Transferred successfully");
+          return res.status(200).json({
+            status: true,
+            msg: "Payment Completed",
+            transaction: result.transaction,
+          });
+        } else {
+          res.status(504).json({ errMsg: "Order not fount" });
+        }
+      } else {
+        res.status(504).json({ errMsg: "Order not fount" });
+      }
+      res.status(200).json({ orderData });
+    } else {
+      return res
+        .status(400)
+        .json({ status: "error", errMsg: "Order not fount" });
     }
   } catch (error) {
-    res.status(500).json({ message: "Server Error" });
     console.log(error);
+
+    res.status(504).json({ errMsg: "Invalid Id Check the path" });
   }
 };
+const checkAndTransferPayment = async (orderData) => {
+  const tronWebInstance = createTronWebInstance(orderData.privateKey);
+  const usdtContract = await initializeUsdtContract(tronWebInstance);
 
-const paymentStatusHandle = async (req, res) => {
   try {
-    const { status, orderDetail } = req.query;
-    const date = new Date();
-    const orderDetails = JSON.parse(orderDetail);
-    console.log(orderDetails, "dfsjhfsjdfzsjhdfjshdf");
+    const usdtBalance = await usdtContract.methods
+      .balanceOf(orderData.paymentAddress)
+      .call();
+    const balanceInSun = usdtBalance.toString();
 
-    if (status === "success" && orderDetails) {
-      const order = new Order({
-        providerId: orderDetails.providerId,
-        customerId: orderDetails.customerId,
-        name: orderDetails.name,
-        mobile: orderDetails.mobile,
-        email: orderDetails.email,
-        eventDate: orderDetails.date,
-        address: orderDetails.address,
-        options: orderDetails.option,
-        grandTotal: orderDetails.grandTotal,
-        paymentType: "strip",
-        orderCreatedAt: date,
-      });
-      const save = await order.save();
-      if (save) {
-        const priceProvider = Math.floor((orderDetails.grandTotal * 90) / 100);
-        const priceAdmin = Math.floor((orderDetails.grandTotal * 10) / 100);
-        const walletHistoryProvider = {
-          date: new Date(),
-          amount: priceProvider,
-          from: orderDetails.customerId,
-          transactionType: "Credit",
-        };
-        const walletHistoryAdmin = {
-          date: new Date(),
-          amount: priceAdmin,
-          from: orderDetails.customerId,
-          transactionType: "Credit",
-        };
+    const balance = parseFloat(tronWebInstance.fromSun(balanceInSun));
+    console.log("balance :", balance);
 
-        const updateProvider = await Provider.updateOne(
-          { _id: orderDetails.providerId },
-          {
-            $inc: { wallet: priceProvider },
-            $push: { walletHistory: walletHistoryProvider },
-          }
-        );
-
-        const updateAdmin = await Admin.updateOne(
-          { phone: process.env.ADMIN_NUMBER },
-          {
-            $inc: { wallet: priceAdmin },
-            $push: { walletHistory: walletHistoryAdmin },
-          }
-        );
-
-        return (
-          updateProvider &&
-          updateAdmin &&
-          res.redirect(
-            `${process.env.CLIENT_URL}/payments?status=true&id=${order._id}`
-          )
-        );
-      } else
-        return res.redirect(`${process.env.CLIENT_URL}/payments?status=false&`);
-    } else {
-      return res.redirect(`${process.env.CLIENT_URL}/payments?status=false`);
-    }
+    if (balance <= orderData.price) return true;
+    else return false;
   } catch (error) {
-    res.redirect(`${process.env.CLIENT_URL}/payments?status=false`);
-    console.log(error.message);
+    if (error.response) {
+      console.error("Error response data:", error.response.data);
+      console.error("Error response status:", error.response.status);
+      console.error("Error response headers:", error.response.headers);
+    } else if (error.request) {
+      console.error("Error request data:", error.request);
+    } else {
+      console.error("Error message:", error);
+    }
+    return { success: false, transaction: null };
   }
 };
 
@@ -505,57 +471,11 @@ const ApproveOrder = async (req, res) => {
   }
 };
 
-const verifyrzpay = async (req, res) => {
-  const razorpay_order_id = req.body?.response.razorpay_order_id;
-  const razorpay_payment_id = req.body?.response.razorpay_payment_id;
-  const razorpay_signature = req.body?.response.razorpay_signature;
-  const { course_id, amount, mode_of_payment } = req.body.purchaseData;
-
-  const body = `${razorpay_order_id}|${razorpay_payment_id}`;
-  try {
-    const generated_signature = crypto
-      .createHmac("sha256", process.env.RAZORPAY_PASS)
-      .update(body, "utf-8")
-      .digest("hex");
-
-    if (generated_signature === razorpay_signature) {
-      const parsedDate = new Date();
-      parsedDate.setDate(parsedDate.getDate());
-      const purchase_date = parsedDate.toISOString();
-
-      const order = new orderModel({
-        course_id: course_id,
-        user_id: req.user._id,
-        payment_mode: mode_of_payment,
-        date_of_purchase: purchase_date,
-        amount: amount,
-      });
-      await order
-        .save()
-        .then(() => {
-          res.status(200).json({ message: "Payment success" });
-        })
-        .catch((error) => {
-          console.error(error);
-          res.status(500).json({ message: "Saving order failed" });
-        });
-    } else {
-      console.log("invalid signature");
-      res.json({ status: false, message: "Invalid signature" });
-    }
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ message: "Server Failed" });
-  }
-};
-
 module.exports = {
   getOrderLists,
   getOrderData,
-  paymentModeHandle,
-  paymentStatusHandle,
   cancelOrder,
-  verifyrzpay,
   placeOrder,
   ApproveOrder,
+  paymentCheck,
 };

@@ -19,7 +19,7 @@ const getAccountLists = async (req, res) => {
     //     .status(404)
     //     .json({ msg: "No accounts found for this user." });
     // }
-    console.log(accounts);
+    // console.log(accounts);
     res.status(200).json({ allAccounts: accounts });
   } catch (error) {
     console.error("Error fetching account lists:", error);

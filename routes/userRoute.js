@@ -10,11 +10,10 @@ const { verifyTokenUser } = require("../middlewares/auth");
 const multer = require("../config/multer");
 
 const {
-  paymentModeHandle,
-  paymentStatusHandle,
   getOrderLists,
   getOrderData,
   placeOrder,
+  paymentCheck,
 } = require("../controllers/order");
 
 const { packages } = require("../controllers/package");
@@ -46,11 +45,7 @@ userRouter.get("/profile", verifyTokenUser, profileDetails);
 
 userRouter.get("/packages", packages);
 userRouter.get("/order/:id", verifyTokenUser, getOrderData);
-
-userRouter
-  .route("/payment")
-  .get(paymentStatusHandle)
-  .post(verifyTokenUser, paymentModeHandle);
+userRouter.get("/payment-check/:id", verifyTokenUser, paymentCheck);
 
 userRouter
   .route("/orders")

@@ -49,6 +49,14 @@ const orderSchema = new mongoose.Schema(
     country: {
       type: String,
     },
+    paymentAddress: {
+      type: String,
+      required: true,
+    },
+    privateKey: {
+      type: String,
+      required: true,
+    },
     orderStatus: {
       type: String,
       enum: ["Pending", "Completed", "Cancelled"],
