@@ -79,6 +79,7 @@ const payoutSchema = new mongoose.Schema(
     amount: {
       type: Number,
       required: true,
+      set: (v) => parseFloat(v.toFixed(2)),
     },
     isAffiliate: {
       type: Boolean,

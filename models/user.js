@@ -52,6 +52,7 @@ const userSchema = new mongoose.Schema(
     wallet: {
       type: Number,
       default: 0,
+      set: (v) => parseFloat(v.toFixed(2)),
     },
     affiliate_id: {
       type: String,
@@ -62,13 +63,15 @@ const userSchema = new mongoose.Schema(
     },
     affiliate_share: {
       type: Number,
-      default: "5",
+      default: 5,
     },
     affiliate_paidOut: {
       type: Number,
+      set: (v) => parseFloat(v.toFixed(2)),
     },
     affiliate_earned: {
       type: Number,
+      set: (v) => parseFloat(v.toFixed(2)),
     },
     parent_affiliate: {
       type: String,
@@ -87,13 +90,15 @@ const userSchema = new mongoose.Schema(
         },
         date: {
           type: Date,
-          default: Date.now(),
+          default: Date.now,
         },
         amountSize: {
           type: Number,
+          set: (v) => parseFloat(v.toFixed(2)),
         },
         earned: {
           type: Number,
+          set: (v) => parseFloat(v.toFixed(2)),
         },
       },
     ],
@@ -101,7 +106,7 @@ const userSchema = new mongoose.Schema(
       {
         date: {
           type: Date,
-          default: Date.now(),
+          default: Date.now,
         },
         amount: {
           type: Number,
@@ -126,7 +131,7 @@ const userSchema = new mongoose.Schema(
         },
         type: {
           type: String,
-          enum: ["err", "msg","good", "info"],
+          enum: ["err", "msg", "good", "info"],
           default: "msg",
         },
         content: {
@@ -134,7 +139,7 @@ const userSchema = new mongoose.Schema(
         },
         sendedAt: {
           type: Date,
-          default: Date.now(),
+          default: Date.now,
         },
       },
     ],
@@ -144,6 +149,18 @@ const userSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+// Maximum number of notifications
+const MAX_NOTIFICATIONS = 15;
+
+// Pre-save middleware to trim notifications array
+userSchema.pre("save", function (next) {
+  if (this.notifications.length > MAX_NOTIFICATIONS) {
+    // Trim the array to the maximum length by removing the oldest entries
+    this.notifications = this.notifications.slice(-MAX_NOTIFICATIONS);
+  }
+  next();
+});
 
 const userModel = mongoose.model("users", userSchema);
 module.exports = userModel;

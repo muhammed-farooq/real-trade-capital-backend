@@ -425,8 +425,11 @@ const ApproveOrder = async (req, res) => {
           !isNaN(order.price) &&
           !isNaN(referralUser.affiliate_share)
         ) {
+          const orderPrice = order.couponRedusedAmount
+            ? order.price + order.couponRedusedAmount
+            : order.price;
           const referralAmount =
-            (order.price * referralUser.affiliate_share) / 100;
+            (orderPrice * referralUser.affiliate_share) / 100;
           referralUser.wallet += referralAmount;
           referralUser.affiliate_earned =
             (referralUser.affiliate_earned || 0) + referralAmount;

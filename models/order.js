@@ -22,10 +22,12 @@ const orderSchema = new mongoose.Schema(
     couponRedusedAmount: {
       type: Number,
       default: 0,
+      set: (v) => parseFloat(v.toFixed(2)),
     },
     price: {
       type: Number,
       required: true,
+      set: (v) => parseFloat(v.toFixed(2)),
     },
     platform: {
       type: String,

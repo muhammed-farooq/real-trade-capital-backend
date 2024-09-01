@@ -98,6 +98,7 @@ const accountSchema = new mongoose.Schema(
     withdrawsAmount: {
       type: String,
       default: 0,
+      set: (v) => parseFloat(v.toFixed(2)),
     },
     withdrawIng: {
       type: Boolean,
