@@ -1,7 +1,7 @@
  const express = require("express");
 const { login, profileDetails } = require("../controllers/admin");
 const { verifyTokenAdmin } = require("../middlewares/auth");
-const { packages, addService, editPackage } = require("../controllers/package");
+const { packages, editPackage } = require("../controllers/package");
 const { allUsers, blockUser, unBlockUser } = require("../controllers/user");
 
 const {
@@ -43,12 +43,6 @@ adminRoute.patch("/blockUser/:userId", verifyTokenAdmin, blockUser);
 adminRoute.patch("/unBlockUser/:userId", verifyTokenAdmin, unBlockUser);
 
 adminRoute.get("/packages", verifyTokenAdmin, packages);
-adminRoute.post(
-  "/addService",
-  verifyTokenAdmin,
-  upload.single("file"),
-  addService
-);
 adminRoute.patch("/packages", verifyTokenAdmin, editPackage);
 adminRoute.route("/account/:id").get(verifyTokenAdmin, getAccountLists);
 adminRoute.get("/order", verifyTokenAdmin, getOrderLists);
