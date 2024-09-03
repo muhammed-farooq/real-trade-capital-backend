@@ -6,7 +6,6 @@ const cors = require("cors");
 const app = express();
 const userRouter = require("./routes/userRoute");
 const adminRouter = require("./routes/adminRoute");
-const { spawn } = require("child_process");
 
 const corsOptions = {
   origin: "*",
