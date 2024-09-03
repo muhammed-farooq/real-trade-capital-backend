@@ -58,9 +58,9 @@ const signup = async (req, res) => {
     await newUser.save();
 
     // Send verification email after user is created
-    const verificationLink = `https://yourdomain.com/mail-verify/${newUser._id}`;
+    const verificationLink = `https://real-trade-capital-frontend-zeta.vercel.app/verify/${newUser._id}`;
 
-    const htmlContent = `
+    const htmlContent = 
       <html>
       <body style="font-family: Arial, sans-serif; background-color: #f7f7f7; padding: 20px; margin: 0;">
         <div style="max-width: 600px; margin: auto; background-color: #ffffff; padding: 20px; border-radius: 8px;">
