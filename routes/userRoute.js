@@ -7,8 +7,6 @@ const {
 } = require("../controllers/user");
 const { verifyTokenUser } = require("../middlewares/auth");
 
-const multer = require("../config/multer");
-
 const {
   getOrderLists,
   getOrderData,
@@ -33,8 +31,6 @@ const {
   generateAccountCertificate,
 } = require("../controllers/certificate");
 const { useCoupon } = require("../controllers/coupon");
-
-const upload = multer.createMulter();
 
 const userRouter = express.Router();
 

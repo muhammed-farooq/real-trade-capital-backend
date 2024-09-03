@@ -4,7 +4,6 @@ const { verifyTokenAdmin } = require("../middlewares/auth");
 const { packages, addService, editPackage } = require("../controllers/package");
 const { allUsers, blockUser, unBlockUser } = require("../controllers/user");
 
-const multer = require("../config/multer");
 const {
   getOrderLists,
   getOrderData,
@@ -35,7 +34,6 @@ const {
   stopCoupon,
   useCoupon,
 } = require("../controllers/coupon");
-const upload = multer.createMulter();
 const adminRoute = express.Router();
 
 adminRoute.post("/login", login);
