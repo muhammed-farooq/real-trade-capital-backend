@@ -60,8 +60,7 @@ const signup = async (req, res) => {
     // Send verification email after user is created
     const verificationLink = `https://real-trade-capital-frontend-zeta.vercel.app/verify/${newUser._id}`;
 
-    const htmlContent = 
-      <html>
+    const htmlContent = ` <html>
       <body style="font-family: Arial, sans-serif; background-color: #f7f7f7; padding: 20px; margin: 0;">
         <div style="max-width: 600px; margin: auto; background-color: #ffffff; padding: 20px; border-radius: 8px;">
           <h2 style="color: #333333; text-align: center;">Welcome to Our Service, ${firstName}!</h2>
@@ -70,7 +69,7 @@ const signup = async (req, res) => {
             <a href="${verificationLink}" style="display: inline-block; padding: 10px 20px; color: white; background-color: #007bff; border-radius: 5px; text-decoration: none;">Confirm Email</a>
           </div>
           <p style="color: #555555;">If you did not sign up for this account, you can safely ignore this email.</p>
-          <hr style="border: 0; border-top: 1px solid #eeeeee; margin: 20px 0;">
+          <hr style="border: 0; border-top: 1px solid #eeeeee; margin: 20px 0;"/>
           <footer style="color: #999999; text-align: center;">
             <p>&copy; ${new Date().getFullYear()} Your Company. All rights reserved.</p>
             <p>
@@ -114,11 +113,14 @@ const login = async (req, res) => {
     if (!passwordCheck)
       return res.status(401).json({ errMsg: "Password doesn't match" });
     if (user.isBanned)
-      return res.status(401).json({ errMsg: "You are blocked" ,timeout:true});
+      return res.status(401).json({ errMsg: "You are blocked", timeout: true });
     if (!user.isVerify)
       return res
         .status(201)
-        .json({ info: "You are not verified yet please check you male" ,timeout:true});
+        .json({
+          info: "You are not verified yet please check you male",
+          timeout: true,
+        });
     const token = generateToken(user._id, "user");
     console.log(token);
     res.status(200).json({
@@ -144,7 +146,7 @@ const verifyMail = async (req, res) => {
     }
 
     if (user.isBanned) {
-      return res.status(403).json({ errMsg: "You are blocked" ,timeout:true});
+      return res.status(403).json({ errMsg: "You are blocked", timeout: true });
     }
 
     if (!user.isVerify) {
