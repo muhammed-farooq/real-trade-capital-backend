@@ -1,10 +1,11 @@
 const User = require("../models/user");
-const sha256 = require("js-sha256");
+const bcrypt = require("bcrypt");
 const Joi = require("joi");
 const { generateToken } = require("../middlewares/auth");
 const { Resend } = require("resend");
 
 const resend = new Resend(process.env.RESEND_SECRET_KEY);
+console.log(resend, process.env.RESEND_SECRET_KEY);
 let msg, errMsg;
 
 const signupSchema = Joi.object({
@@ -44,26 +45,31 @@ const signup = async (req, res) => {
     const randomNumPart = randomNum.toString().padStart(3, "0");
     const referralNumber = `#${timestampPart}${randomNumPart}`;
 
+    // Hash the password with bcrypt
+    const hashedPassword = await bcrypt.hash(
+      password + process.env.PASSWORD_SALT,
+      10
+    );
+
     // Create new user
     const newUser = new User({
       first_name: firstName,
       last_name: lastName,
       email,
-      password: sha256(password + process.env.PASSWORD_SALT), // Hashing the password
+      password: hashedPassword,
       affiliate_id: referralNumber,
       parent_affiliate: referralCode || "",
-      is_affiliate: !!referralCode, // Boolean conversion
+      is_affiliate: !!referralCode,
     });
 
     await newUser.save();
 
     // Send verification email after user is created
     const verificationLink = `https://real-trade-capital-frontend-zeta.vercel.app/verify/${newUser._id}`;
-
     const htmlContent = ` <html>
       <body style="font-family: Arial, sans-serif; background-color: #f7f7f7; padding: 20px; margin: 0;">
         <div style="max-width: 600px; margin: auto; background-color: #ffffff; padding: 20px; border-radius: 8px;">
-          <h2 style="color: #333333; text-align: center;">Welcome to Our Service, ${firstName}!</h2>
+          <h2 style="color: #333333; text-align: center;">Welcome to Our Service, ${firstName} ${lastName}!</h2>
           <p style="color: #555555;">Thank you for signing up. Please confirm your email address by clicking the button below:</p>
           <div style="text-align: center; margin: 20px 0;">
             <a href="${verificationLink}" style="display: inline-block; padding: 10px 20px; color: white; background-color: #007bff; border-radius: 5px; text-decoration: none;">Confirm Email</a>
@@ -81,12 +87,13 @@ const signup = async (req, res) => {
       </body>
       </html>
     `;
+
     try {
       await resend.emails.send({
-        from: "chcheri459@gmail.com",
-        to: "farooqp9207@gmail.com",
+        from: "support@realtradecapital.com",
+        to: email,
         subject: "Verification mail from REAL TRADE CAPITAL",
-        html: htmlContent, // Send the HTML content
+        html: htmlContent,
       });
       console.log("Verification email sent successfully.");
     } catch (emailError) {
@@ -96,7 +103,7 @@ const signup = async (req, res) => {
         .json({ errMsg: "Failed to send verification email." });
     }
 
-    res.status(200).json({ msg: "Registration Success" });
+    res.status(201).json({ msg: "Registration Success" });
   } catch (error) {
     console.error("Error during registration:", error);
     res.status(504).json({ msg: "Gateway time-out" });
@@ -107,22 +114,45 @@ const login = async (req, res) => {
   try {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
-    if (!user) return res.status(401).json({ errMsg: "User not found" });
-    const passwordCheck =
-      user.password == sha256(password + process.env.PASSWORD_SALT);
-    if (!passwordCheck)
+
+    if (!user) {
+      console.log("User not found");
+      return res.status(401).json({ errMsg: "User not found" });
+    }
+
+    console.log("Stored Hashed Password:", user.password);
+
+    // Compare the provided password with the hashed password stored in the database
+    const passwordCheck = await bcrypt.compare(
+      password + process.env.PASSWORD_SALT,
+      user.password
+    );
+
+    console.log("Password Check Result:", passwordCheck);
+    console.log("Provided Password:", password);
+    console.log(
+      "Combined Password + Salt:",
+      password + process.env.PASSWORD_SALT
+    );
+
+    if (!passwordCheck) {
       return res.status(401).json({ errMsg: "Password doesn't match" });
-    if (user.isBanned)
+    }
+
+    if (user.isBanned) {
       return res.status(401).json({ errMsg: "You are blocked", timeout: true });
-    if (!user.isVerify)
-      return res
-        .status(201)
-        .json({
-          info: "You are not verified yet please check you male",
-          timeout: true,
-        });
+    }
+
+    if (!user.isVerify) {
+      return res.status(201).json({
+        info: "You are not verified yet please check your email",
+        timeout: true,
+      });
+    }
+
     const token = generateToken(user._id, "user");
-    console.log(token);
+    console.log("Generated Token:", token);
+
     res.status(200).json({
       msg: "Login successfully",
       name: user?.name,
@@ -131,7 +161,7 @@ const login = async (req, res) => {
       role: "user",
     });
   } catch (error) {
-    console.log(error);
+    console.error("Error during login:", error);
     res.status(504).json({ errMsg: "Gateway time-out" });
   }
 };
