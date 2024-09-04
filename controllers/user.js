@@ -5,7 +5,6 @@ const { generateToken } = require("../middlewares/auth");
 const { Resend } = require("resend");
 
 const resend = new Resend(process.env.RESEND_SECRET_KEY);
-console.log(resend, process.env.RESEND_SECRET_KEY);
 let msg, errMsg;
 
 const signupSchema = Joi.object({
