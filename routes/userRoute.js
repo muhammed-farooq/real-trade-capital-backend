@@ -4,6 +4,8 @@ const {
   login,
   profileDetails,
   verifyMail,
+  newPassword,
+  forgotPassword,
 } = require("../controllers/user");
 const { verifyTokenUser } = require("../middlewares/auth");
 
@@ -79,5 +81,7 @@ userRouter.get(
 userRouter.get("/withdrawal", verifyTokenUser, getAllWithdrawals);
 
 userRouter.post("/useCoupon", verifyTokenUser, useCoupon);
+userRouter.post("/new-password" , newPassword);
+userRouter.post("/forgot-password", forgotPassword);
 
 module.exports = userRouter;

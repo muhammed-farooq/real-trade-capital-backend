@@ -80,6 +80,10 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    forgotPassword: {
+      type: Boolean,
+      default: false,
+    },
     my_referrals: [
       {
         user: {

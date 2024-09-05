@@ -64,22 +64,26 @@ const signup = async (req, res) => {
     await newUser.save();
 
     // Send verification email after user is created
-    const verificationLink = `https://real-trade-capital-frontend-zeta.vercel.app/verify/${newUser._id}`;
+    const verificationLink = `${process.env.API_URL}/verify/${newUser._id}`;
     const htmlContent = ` <html>
       <body style="font-family: Arial, sans-serif; background-color: #f7f7f7; padding: 20px; margin: 0;">
         <div style="max-width: 600px; margin: auto; background-color: #ffffff; padding: 20px; border-radius: 8px;">
           <h2 style="color: #333333; text-align: center;">Welcome to Our Service, ${firstName} ${lastName}!</h2>
-          <p style="color: #555555;">Thank you for signing up. Please confirm your email address by clicking the button below:</p>
+          <p style="color: #555555; text-align: center;">Thank you for signing up. Please confirm your email address by clicking the button below:</p>
           <div style="text-align: center; margin: 20px 0;">
             <a href="${verificationLink}" style="display: inline-block; padding: 10px 20px; color: white; background-color: #007bff; border-radius: 5px; text-decoration: none;">Confirm Email</a>
           </div>
-          <p style="color: #555555;">If you did not sign up for this account, you can safely ignore this email.</p>
+          <p style="color: #555555; text-align: center;">If you did not sign up for this account, you can safely ignore this email.</p>
           <hr style="border: 0; border-top: 1px solid #eeeeee; margin: 20px 0;"/>
           <footer style="color: #999999; text-align: center;">
             <p>&copy; ${new Date().getFullYear()} Your Company. All rights reserved.</p>
             <p>
-              <a href="https://yourcompany.com" style="color: #007bff; text-decoration: none;">Visit our website</a> | 
-              <a href="https://yourcompany.com/unsubscribe" style="color: #007bff; text-decoration: none;">Unsubscribe</a>
+              <a href="${
+                process.env.API_URL
+              }" style="color: #007bff; text-decoration: none;">Visit our website</a> | 
+              <a href="${
+                process.env.API_URL
+              }/new-challenge" style="color: #007bff; text-decoration: none;">new-challenge</a>
             </p>
           </footer>
         </div>
@@ -158,6 +162,146 @@ const login = async (req, res) => {
       userData: user,
       token,
       role: "user",
+    });
+  } catch (error) {
+    console.error("Error during login:", error);
+    res.status(504).json({ errMsg: "Gateway time-out" });
+  }
+};
+
+const newPasswordSchema = Joi.object({
+  id: Joi.string().required(),
+  password: Joi.string().min(8).required(),
+});
+
+const newPassword = async (req, res) => {
+  try {
+    const { id, password } = req.body;
+    const { error } = newPasswordSchema.validate({
+      id,
+      password,
+    });
+    if (error) {
+      return res.status(400).json({ errMsg: error.details[0].message });
+    }
+    const user = await User.findById(id);
+    console.log(id, password, user);
+
+    if (!user) {
+      console.log("User not found");
+      return res.status(401).json({ errMsg: "User not found" });
+    }
+
+    console.log("Stored Hashed Password:", user.password);
+
+    const hashedPassword = await bcrypt.hash(
+      password + process.env.PASSWORD_SALT,
+      10
+    );
+    if (!hashedPassword) {
+      return res.status(401).json({ errMsg: "Password not correct" });
+    }
+
+    if (user.isBanned) {
+      return res.status(401).json({ errMsg: "You are blocked", timeout: true });
+    }
+
+    if (!user.isVerify) {
+      return res.status(201).json({
+        info: "You are not verified yet please check your email",
+        timeout: true,
+      });
+    }
+    user.password = hashedPassword;
+    user.forgotPassword = false;
+    await user.save();
+    res.status(200).json({
+      msg: "Password changed successfully",
+    });
+  } catch (error) {
+    console.error("Error during login:", error);
+    res.status(504).json({ errMsg: "Gateway time-out" });
+  }
+};
+
+const forgotPassword = async (req, res) => {
+  try {
+    console.log(req.body);
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(401).json({ errMsg: "Mail is required" });
+    }
+    const user = await User.findOne({ email });
+    console.log(user);
+
+    if (!user) {
+      console.log("User not found");
+      return res.status(401).json({ errMsg: "User not found" });
+    }
+    if (user.isBanned) {
+      return res.status(401).json({ errMsg: "You are blocked", timeout: true });
+    }
+    if (user.forgotPassword) {
+      return res.status(203).json({
+        info: "Please Check your mail, You already requested",
+        timeout: true,
+      });
+    }
+
+    if (!user.isVerify) {
+      return res.status(201).json({
+        info: "You are not verified yet please check your email",
+        timeout: true,
+      });
+    }
+    const verificationLink = `${process.env.API_URL}/new-password/${user._id}`;
+    const htmlContent = ` <html>
+      <body style="font-family: Arial, sans-serif; background-color: #f7f7f7; padding: 20px; margin: 0;">
+        <div style="max-width: 600px; margin: auto; background-color: #ffffff; padding: 20px; border-radius: 8px;">
+          <h2 style="color: #333333; text-align: center;">Welcome to Real Trade Capital, ${
+            user?.first_name
+          } ${user?.last_name}!</h2>
+          <p style="color: #555555; text-align: center;">To create new password click the button below:</p>
+          <div style="text-align: center; margin: 20px 0;">
+            <a href="${verificationLink}" style="display: inline-block; padding: 10px 20px; color: white; background-color: #007bff; border-radius: 5px; text-decoration: none;">New Password</a>
+          </div>
+          <p style="color: #555555; text-align: center;">If you did not sign up for this account, you can safely ignore this email.</p>
+          <hr style="border: 0; border-top: 1px solid #eeeeee; margin: 20px 0;"/>
+          <footer style="color: #999999; text-align: center;">
+            <p>&copy; ${new Date().getFullYear()} Your Company. All rights reserved.</p>
+            <p>
+              <a href='${
+                process.env.API_URL
+              }' style="color: #007bff; text-decoration: none;">Visit our website</a> | 
+              <a href="${
+                process.env.API_URL
+              }/new-challenge" style="color: #007bff; text-decoration: none;">new-challenge</a>
+            </p>
+          </footer>
+        </div>
+      </body>
+      </html>
+    `;
+
+    try {
+      await resend.emails.send({
+        from: "support@realtradecapital.com",
+        to: email,
+        subject: "Forgot Password from REAL TRADE CAPITAL",
+        html: htmlContent,
+      });
+      console.log("Verification email sent successfully.");
+    } catch (emailError) {
+      console.error("Error sending email:", emailError);
+      return res
+        .status(500)
+        .json({ errMsg: "Failed to send mail. please try again." });
+    }
+    user.forgotPassword = true;
+    await user.save();
+    res.status(200).json({
+      info: "Please Check your mail for further instructions",
     });
   } catch (error) {
     console.error("Error during login:", error);
@@ -253,6 +397,8 @@ module.exports = {
   signup,
   login,
   allUsers,
+  newPassword,
+  forgotPassword,
   blockUser,
   unBlockUser,
   profileDetails,
