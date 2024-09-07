@@ -121,7 +121,7 @@ const placeOrder = async (req, res) => {
       package,
       privateKey,
       paymentAddress,
-      price: configureAccount.price,
+      price: Number(configureAccount.price),
       platform: configureAccount.platform,
       step: configureAccount.accountType,
       amountSize: configureAccount.accountSize,
@@ -130,7 +130,7 @@ const placeOrder = async (req, res) => {
       phone: billingDetails.phone,
       mail: billingDetails.mail,
       isCouponApplied: !!configureAccount.coupon, // double exclamation marks to ensure it's a boolean
-      couponRedusedAmount: configureAccount.couponRedusedAmount, // can remain as is
+      couponRedusedAmount: Number(configureAccount.couponRedusedAmount), // can remain as is
       billingDetails: {
         title: billingDetails.title,
         postalCode: billingDetails.postalCode,
