@@ -93,7 +93,7 @@ const signup = async (req, res) => {
 
     try {
       await resend.emails.send({
-        from: "support@realtradecapital.com",
+        from: process.env.WEBSITE_MAIL,
         to: email,
         subject: "Verification mail from REAL TRADE CAPITAL",
         html: htmlContent,
@@ -286,7 +286,7 @@ const forgotPassword = async (req, res) => {
 
     try {
       await resend.emails.send({
-        from: "support@realtradecapital.com",
+        from: process.env.WEBSITE_MAIL,
         to: email,
         subject: "Forgot Password from REAL TRADE CAPITAL",
         html: htmlContent,

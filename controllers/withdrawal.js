@@ -6,10 +6,10 @@ const addWithdrawal = async (req, res) => {
     const { formValue } = req.body;
     console.log("Payout body:", req.body);
 
-    const { txnId, name, amount } = formValue;
+    const { txnId, name, amount, country } = formValue;
 
     // Check if all required fields are present
-    if (!name || !txnId || !amount) {
+    if (!name || !txnId || !amount || !country) {
       return res.status(404).json({ errMsg: "Fill the form" });
     }
 
@@ -34,7 +34,8 @@ const addWithdrawal = async (req, res) => {
     const newWithdrawal = new Withdrawal({
       name,
       txnId,
-      amount: amountNumber, // Ensure amount is stored as a number
+      amount: amountNumber,
+      country, // Ensure amount is stored as a number
     });
 
     const saveWithdrawal = await newWithdrawal.save();

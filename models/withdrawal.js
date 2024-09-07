@@ -20,6 +20,9 @@ const withdrawalSchema = new mongoose.Schema(
     paymentMethod: {
       type: String,
     },
+    country: {
+      type: String,
+    },
     txnId: {
       type: String,
       required: true,

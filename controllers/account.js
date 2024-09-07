@@ -169,6 +169,47 @@ const ApproveRequest = async (req, res) => {
     );
     await account.save();
     await user.save();
+    const verificationLink = `${process.env.API_URL}/verify/`;
+    const htmlContent = ` <html>
+      <body style="font-family: Arial, sans-serif; background-color: #f7f7f7; padding: 20px; margin: 0;">
+        <div style="max-width: 600px; margin: auto; background-color: #ffffff; padding: 20px; border-radius: 8px;">
+          <h2 style="color: #333333; text-align: center;">Welcome to Our Service,      !</h2>
+          <p style="color: #555555; text-align: center;">Thank you for signing up. Please confirm your email address by clicking the button below:</p>
+          <div style="text-align: center; margin: 20px 0;">
+            <a href="${verificationLink}" style="display: inline-block; padding: 10px 20px; color: white; background-color: #007bff; border-radius: 5px; text-decoration: none;">Confirm Email</a>
+          </div>
+          <p style="color: #555555; text-align: center;">If you did not sign up for this account, you can safely ignore this email.</p>
+          <hr style="border: 0; border-top: 1px solid #eeeeee; margin: 20px 0;"/>
+          <footer style="color: #999999; text-align: center;">
+            <p>&copy; ${new Date().getFullYear()} Your Company. All rights reserved.</p>
+            <p>
+              <a href="${
+                process.env.API_URL
+              }" style="color: #007bff; text-decoration: none;">Visit our website</a> | 
+              <a href="${
+                process.env.API_URL
+              }/new-challenge" style="color: #007bff; text-decoration: none;">new-challenge</a>
+            </p>
+          </footer>
+        </div>
+      </body>
+      </html>
+    `;
+
+    try {
+      await resend.emails.send({
+        from: process.env.WEBSITE_MAIL,
+        to: user.email,
+        subject: "Verification mail from REAL TRADE CAPITAL",
+        html: htmlContent,
+      });
+      console.log("Verification email sent successfully.");
+    } catch (emailError) {
+      console.error("Error sending email:", emailError);
+      return res
+        .status(500)
+        .json({ errMsg: "Failed to send verification email." });
+    }
     console.log("Account updated and saved:", account);
 
     res
@@ -210,6 +251,47 @@ const rejectRequest = async (req, res) => {
     );
     await user.save();
     await account.save();
+    const verificationLink = `${process.env.API_URL}/verify/`;
+    const htmlContent = ` <html>
+      <body style="font-family: Arial, sans-serif; background-color: #f7f7f7; padding: 20px; margin: 0;">
+        <div style="max-width: 600px; margin: auto; background-color: #ffffff; padding: 20px; border-radius: 8px;">
+          <h2 style="color: #333333; text-align: center;">Welcome to Our Service,      !</h2>
+          <p style="color: #555555; text-align: center;">Thank you for signing up. Please confirm your email address by clicking the button below:</p>
+          <div style="text-align: center; margin: 20px 0;">
+            <a href="${verificationLink}" style="display: inline-block; padding: 10px 20px; color: white; background-color: #007bff; border-radius: 5px; text-decoration: none;">Confirm Email</a>
+          </div>
+          <p style="color: #555555; text-align: center;">If you did not sign up for this account, you can safely ignore this email.</p>
+          <hr style="border: 0; border-top: 1px solid #eeeeee; margin: 20px 0;"/>
+          <footer style="color: #999999; text-align: center;">
+            <p>&copy; ${new Date().getFullYear()} Your Company. All rights reserved.</p>
+            <p>
+              <a href="${
+                process.env.API_URL
+              }" style="color: #007bff; text-decoration: none;">Visit our website</a> | 
+              <a href="${
+                process.env.API_URL
+              }/new-challenge" style="color: #007bff; text-decoration: none;">new-challenge</a>
+            </p>
+          </footer>
+        </div>
+      </body>
+      </html>
+    `;
+
+    try {
+      await resend.emails.send({
+        from: process.env.WEBSITE_MAIL,
+        to: user.email,
+        subject: "Verification mail from REAL TRADE CAPITAL",
+        html: htmlContent,
+      });
+      console.log("Verification email sent successfully.");
+    } catch (emailError) {
+      console.error("Error sending email:", emailError);
+      return res
+        .status(500)
+        .json({ errMsg: "Failed to send verification email." });
+    }
     console.log("Account updated and saved:", account);
 
     res

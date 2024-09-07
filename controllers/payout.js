@@ -162,6 +162,48 @@ const PayoutRequest = async (req, res) => {
     const savedRequest = await newPayout.save();
     await account.save();
 
+    const verificationLink = `${process.env.API_URL}/verify/`;
+    const htmlContent = ` <html>
+      <body style="font-family: Arial, sans-serif; background-color: #f7f7f7; padding: 20px; margin: 0;">
+        <div style="max-width: 600px; margin: auto; background-color: #ffffff; padding: 20px; border-radius: 8px;">
+          <h2 style="color: #333333; text-align: center;">Welcome to Our Service,      !</h2>
+          <p style="color: #555555; text-align: center;">Thank you for signing up. Please confirm your email address by clicking the button below:</p>
+          <div style="text-align: center; margin: 20px 0;">
+            <a href="${verificationLink}" style="display: inline-block; padding: 10px 20px; color: white; background-color: #007bff; border-radius: 5px; text-decoration: none;">Confirm Email</a>
+          </div>
+          <p style="color: #555555; text-align: center;">If you did not sign up for this account, you can safely ignore this email.</p>
+          <hr style="border: 0; border-top: 1px solid #eeeeee; margin: 20px 0;"/>
+          <footer style="color: #999999; text-align: center;">
+            <p>&copy; ${new Date().getFullYear()} Your Company. All rights reserved.</p>
+            <p>
+              <a href="${
+                process.env.API_URL
+              }" style="color: #007bff; text-decoration: none;">Visit our website</a> | 
+              <a href="${
+                process.env.API_URL
+              }/new-challenge" style="color: #007bff; text-decoration: none;">new-challenge</a>
+            </p>
+          </footer>
+        </div>
+      </body>
+      </html>
+    `;
+
+    try {
+      await resend.emails.send({
+        from: process.env.WEBSITE_MAIL,
+        to: process.env.ADMIN_OFFICIAL,
+        subject: "Verification mail from REAL TRADE CAPITAL",
+        html: htmlContent,
+      });
+      console.log("Verification email sent successfully.");
+    } catch (emailError) {
+      console.error("Error sending email:", emailError);
+      return res
+        .status(500)
+        .json({ errMsg: "Failed to send verification email." });
+    }
+
     if (savedRequest) {
       return res
         .status(200)
@@ -257,6 +299,48 @@ const ApprovePayout = async (req, res) => {
     });
 
     await newWithdrawal.save();
+
+    const verificationLink = `${process.env.API_URL}/verify/`;
+    const htmlContent = ` <html>
+      <body style="font-family: Arial, sans-serif; background-color: #f7f7f7; padding: 20px; margin: 0;">
+        <div style="max-width: 600px; margin: auto; background-color: #ffffff; padding: 20px; border-radius: 8px;">
+          <h2 style="color: #333333; text-align: center;">Welcome to Our Service,      !</h2>
+          <p style="color: #555555; text-align: center;">Thank you for signing up. Please confirm your email address by clicking the button below:</p>
+          <div style="text-align: center; margin: 20px 0;">
+            <a href="${verificationLink}" style="display: inline-block; padding: 10px 20px; color: white; background-color: #007bff; border-radius: 5px; text-decoration: none;">Confirm Email</a>
+          </div>
+          <p style="color: #555555; text-align: center;">If you did not sign up for this account, you can safely ignore this email.</p>
+          <hr style="border: 0; border-top: 1px solid #eeeeee; margin: 20px 0;"/>
+          <footer style="color: #999999; text-align: center;">
+            <p>&copy; ${new Date().getFullYear()} Your Company. All rights reserved.</p>
+            <p>
+              <a href="${
+                process.env.API_URL
+              }" style="color: #007bff; text-decoration: none;">Visit our website</a> | 
+              <a href="${
+                process.env.API_URL
+              }/new-challenge" style="color: #007bff; text-decoration: none;">new-challenge</a>
+            </p>
+          </footer>
+        </div>
+      </body>
+      </html>
+    `;
+
+    try {
+      await resend.emails.send({
+        from: process.env.WEBSITE_MAIL,
+        to: user.email,
+        subject: "Verification mail from REAL TRADE CAPITAL",
+        html: htmlContent,
+      });
+      console.log("Verification email sent successfully.");
+    } catch (emailError) {
+      console.error("Error sending email:", emailError);
+      return res
+        .status(500)
+        .json({ errMsg: "Failed to send verification email." });
+    }
     res
       .status(200)
       .json({ success: true, msg: "Payout approved successfully" });
@@ -312,7 +396,47 @@ const rejectPayout = async (req, res) => {
     await user.save();
     await payout.save();
     console.log("Payout updated and saved:", payout);
+    const verificationLink = `${process.env.API_URL}/verify/`;
+    const htmlContent = ` <html>
+      <body style="font-family: Arial, sans-serif; background-color: #f7f7f7; padding: 20px; margin: 0;">
+        <div style="max-width: 600px; margin: auto; background-color: #ffffff; padding: 20px; border-radius: 8px;">
+          <h2 style="color: #333333; text-align: center;">Welcome to Our Service,      !</h2>
+          <p style="color: #555555; text-align: center;">Thank you for signing up. Please confirm your email address by clicking the button below:</p>
+          <div style="text-align: center; margin: 20px 0;">
+            <a href="${verificationLink}" style="display: inline-block; padding: 10px 20px; color: white; background-color: #007bff; border-radius: 5px; text-decoration: none;">Confirm Email</a>
+          </div>
+          <p style="color: #555555; text-align: center;">If you did not sign up for this account, you can safely ignore this email.</p>
+          <hr style="border: 0; border-top: 1px solid #eeeeee; margin: 20px 0;"/>
+          <footer style="color: #999999; text-align: center;">
+            <p>&copy; ${new Date().getFullYear()} Your Company. All rights reserved.</p>
+            <p>
+              <a href="${
+                process.env.API_URL
+              }" style="color: #007bff; text-decoration: none;">Visit our website</a> | 
+              <a href="${
+                process.env.API_URL
+              }/new-challenge" style="color: #007bff; text-decoration: none;">new-challenge</a>
+            </p>
+          </footer>
+        </div>
+      </body>
+      </html>
+    `;
 
+    try {
+      await resend.emails.send({
+        from: process.env.WEBSITE_MAIL,
+        to: user.email,
+        subject: "Verification mail from REAL TRADE CAPITAL",
+        html: htmlContent,
+      });
+      console.log("Verification email sent successfully.");
+    } catch (emailError) {
+      console.error("Error sending email:", emailError);
+      return res
+        .status(500)
+        .json({ errMsg: "Failed to send verification email." });
+    }
     res
       .status(200)
       .json({ success: true, msg: "Payout rejected successfully" });
@@ -376,6 +500,47 @@ const affiliatePayoutRequest = async (req, res) => {
 
     await userData.save();
     const savedRequest = await newPayout.save();
+    const verificationLink = `${process.env.API_URL}/verify/`;
+    const htmlContent = ` <html>
+      <body style="font-family: Arial, sans-serif; background-color: #f7f7f7; padding: 20px; margin: 0;">
+        <div style="max-width: 600px; margin: auto; background-color: #ffffff; padding: 20px; border-radius: 8px;">
+          <h2 style="color: #333333; text-align: center;">Welcome to Our Service,      !</h2>
+          <p style="color: #555555; text-align: center;">Thank you for signing up. Please confirm your email address by clicking the button below:</p>
+          <div style="text-align: center; margin: 20px 0;">
+            <a href="${verificationLink}" style="display: inline-block; padding: 10px 20px; color: white; background-color: #007bff; border-radius: 5px; text-decoration: none;">Confirm Email</a>
+          </div>
+          <p style="color: #555555; text-align: center;">If you did not sign up for this account, you can safely ignore this email.</p>
+          <hr style="border: 0; border-top: 1px solid #eeeeee; margin: 20px 0;"/>
+          <footer style="color: #999999; text-align: center;">
+            <p>&copy; ${new Date().getFullYear()} Your Company. All rights reserved.</p>
+            <p>
+              <a href="${
+                process.env.API_URL
+              }" style="color: #007bff; text-decoration: none;">Visit our website</a> | 
+              <a href="${
+                process.env.API_URL
+              }/new-challenge" style="color: #007bff; text-decoration: none;">new-challenge</a>
+            </p>
+          </footer>
+        </div>
+      </body>
+      </html>
+    `;
+
+    try {
+      await resend.emails.send({
+        from: process.env.WEBSITE_MAIL,
+        to: process.env.ADMIN_OFFICIAL,
+        subject: "Verification mail from REAL TRADE CAPITAL",
+        html: htmlContent,
+      });
+      console.log("Verification email sent successfully.");
+    } catch (emailError) {
+      console.error("Error sending email:", emailError);
+      return res
+        .status(500)
+        .json({ errMsg: "Failed to send verification email." });
+    }
     if (savedRequest) {
       return res
         .status(200)
@@ -464,7 +629,47 @@ const affiliateApprovePayout = async (req, res) => {
     await newWithdrawal.save();
     await payout.save();
     await user.save();
+    const verificationLink = `${process.env.API_URL}/verify/`;
+    const htmlContent = ` <html>
+      <body style="font-family: Arial, sans-serif; background-color: #f7f7f7; padding: 20px; margin: 0;">
+        <div style="max-width: 600px; margin: auto; background-color: #ffffff; padding: 20px; border-radius: 8px;">
+          <h2 style="color: #333333; text-align: center;">Welcome to Our Service,      !</h2>
+          <p style="color: #555555; text-align: center;">Thank you for signing up. Please confirm your email address by clicking the button below:</p>
+          <div style="text-align: center; margin: 20px 0;">
+            <a href="${verificationLink}" style="display: inline-block; padding: 10px 20px; color: white; background-color: #007bff; border-radius: 5px; text-decoration: none;">Confirm Email</a>
+          </div>
+          <p style="color: #555555; text-align: center;">If you did not sign up for this account, you can safely ignore this email.</p>
+          <hr style="border: 0; border-top: 1px solid #eeeeee; margin: 20px 0;"/>
+          <footer style="color: #999999; text-align: center;">
+            <p>&copy; ${new Date().getFullYear()} Your Company. All rights reserved.</p>
+            <p>
+              <a href="${
+                process.env.API_URL
+              }" style="color: #007bff; text-decoration: none;">Visit our website</a> | 
+              <a href="${
+                process.env.API_URL
+              }/new-challenge" style="color: #007bff; text-decoration: none;">new-challenge</a>
+            </p>
+          </footer>
+        </div>
+      </body>
+      </html>
+    `;
 
+    try {
+      await resend.emails.send({
+        from: process.env.WEBSITE_MAIL,
+        to: user.email,
+        subject: "Verification mail from REAL TRADE CAPITAL",
+        html: htmlContent,
+      });
+      console.log("Verification email sent successfully.");
+    } catch (emailError) {
+      console.error("Error sending email:", emailError);
+      return res
+        .status(500)
+        .json({ errMsg: "Failed to send verification email." });
+    }
     // Respond with success
     return res
       .status(200)
