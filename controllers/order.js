@@ -7,6 +7,8 @@ const Package = require("../models/package");
 const { notification } = require("./common");
 const TronWeb = require("tronweb");
 const USDT_CONTRACT_ADDRESS = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
+const { Resend } = require("resend");
+
 const resend = new Resend(process.env.RESEND_SECRET_KEY);
 
 // // Function to create a new TronWeb instance

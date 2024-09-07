@@ -2,7 +2,9 @@ const Account = require("../models/account");
 const CryptoJS = require("crypto-js");
 const User = require("../models/user");
 const { notification } = require("./common");
+const { Resend } = require("resend");
 
+const resend = new Resend(process.env.RESEND_SECRET_KEY);
 ``;
 const encryptPassword = (password) => {
   const secretKey = process.env.PASSWORD_SALT;
