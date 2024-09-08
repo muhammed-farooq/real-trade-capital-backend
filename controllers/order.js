@@ -533,10 +533,10 @@ const ApproveOrder = async (req, res) => {
         } else {
           console.log(
             "Invalid referral calculation due to NaN values",
-            order.price,
-            referralUser.affiliate_share,
+            order?.price,
+            referralUser?.affiliate_share,
             "thsis ",
-            (order.price * referralUser.affiliate_share) / 100
+            (order?.price * referralUser?.affiliate_share) / 100
           );
         }
       }

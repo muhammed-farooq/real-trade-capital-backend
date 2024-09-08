@@ -157,7 +157,7 @@ const PayoutRequest = async (req, res) => {
 
       requestedOn: new Date(),
       TRC20Wallet,
-      amount,
+      amount: Number(amount), 
       FundedStageCredentials: account.FundedStageCredentials,
     });
 
@@ -254,6 +254,10 @@ const ApprovePayout = async (req, res) => {
       console.log(`Account not found for accountId: ${payout.account}`);
       return res.status(404).json({ errMsg: "Account not found" });
     }
+
+    const currentWithdrawsAmount = parseFloat(account.withdrawsAmount || "0");
+    const payoutAmount = parseFloat(payout.amount);
+
     console.log(txnId, note);
     payout.approvedDate = new Date();
     account.FundedStageCredentials = {
@@ -268,7 +272,7 @@ const ApprovePayout = async (req, res) => {
     payout.txnId = txnId;
     payout.note = note;
     account.fondedAccountNo = account.fondedAccountNo + 1;
-    account.withdrawsAmount = account.withdrawsAmount + payout.amount;
+    account.withdrawsAmount = currentWithdrawsAmount + payoutAmount;
     account.withdrawIng = false;
 
     const user = await User.findById(payout.userId);
