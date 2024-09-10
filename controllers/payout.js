@@ -157,7 +157,7 @@ const PayoutRequest = async (req, res) => {
 
       requestedOn: new Date(),
       TRC20Wallet,
-      amount: Number(amount), 
+      amount: Number(amount),
       FundedStageCredentials: account.FundedStageCredentials,
     });
 
@@ -287,6 +287,7 @@ const ApprovePayout = async (req, res) => {
         `$${payout.amount} withdrawal from ${account.accountName} ${payout.status}`
       )
     );
+    user.notificationsCount += 1;
     await user.save();
     await payout.save();
     console.log("payout updated and saved:", payout);
@@ -386,6 +387,7 @@ const rejectPayout = async (req, res) => {
           `$${payout.amount} withdrawal from ${account.accountName} ${payout.status}`
         )
       );
+      user.notificationsCount += 1;
       account.withdrawIng = false;
       await account.save();
     }
@@ -397,6 +399,7 @@ const rejectPayout = async (req, res) => {
           `$${payout.amount} withdrawal from affiliation ${payout.status}`
         )
       );
+      user.notificationsCount += 1;
       user.withdrawIng = false;
     }
     await user.save();
@@ -613,6 +616,7 @@ const affiliateApprovePayout = async (req, res) => {
         `$${payout.amount} withdrawal from affiliation ${payout.status}`
       )
     );
+    user.notificationsCount += 1;
 
     // Log the updated payout
     console.log(

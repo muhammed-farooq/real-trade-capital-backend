@@ -388,6 +388,7 @@ const cancelOrder = async (req, res) => {
         `Your ${account.accountName} purchase ${order.orderStatus}`
       )
     );
+    user.notificationsCount += 1;
     await user.save();
     await order.save();
     await account.save();
@@ -631,6 +632,7 @@ const ApproveOrder = async (req, res) => {
         `Your ${account.accountName} purchase ${order.orderStatus}`
       )
     );
+    user.notificationsCount += 1;
     console.log("dddddddddddddddddddddddddddddddddddddddd");
     await account.save();
     await order.save();

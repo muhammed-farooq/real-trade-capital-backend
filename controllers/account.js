@@ -169,6 +169,7 @@ const ApproveRequest = async (req, res) => {
         `Your "${account.accountName}" successfully passed to ${account.phase}`
       )
     );
+    user.notificationsCount += 1;
     await account.save();
     await user.save();
     const verificationLink = `${process.env.API_URL}/verify/`;
@@ -251,6 +252,7 @@ const rejectRequest = async (req, res) => {
         `Your ${account.accountName} request rejected`
       )
     );
+    user.notificationsCount += 1;
     await user.save();
     await account.save();
     const verificationLink = `${process.env.API_URL}/verify/`;

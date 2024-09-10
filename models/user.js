@@ -146,6 +146,10 @@ const userSchema = new mongoose.Schema(
         },
       },
     ],
+    notificationsCount: {
+      type: Number,
+      default: 0,
+    },
     isPurchased: { type: Boolean, default: false },
   },
   {
