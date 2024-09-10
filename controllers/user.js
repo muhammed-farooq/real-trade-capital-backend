@@ -364,6 +364,20 @@ const profileDetails = async (req, res) => {
     res.status(504).json({ errMsg: "Gateway time-out" });
   }
 };
+const NotificationCount = async (req, res) => {
+  try {
+    const userData = await User.findOne({ _id: req.payload.id });
+    //   userData?userData.walletHistory = userData.walletHistory.slice(-5):res.status(400).json({ errMsg:'User not found'});
+    userData.notificationsCount = 0;
+    await userData.save();
+    userData
+      ? res.status(200).json({ userData })
+      : res.status(400).json({ errMsg: "User not found" });
+  } catch (error) {
+    console.log(error);
+    res.status(504).json({ errMsg: "Gateway time-out" });
+  }
+};
 
 const blockUser = async (req, res) => {
   try {
@@ -403,4 +417,5 @@ module.exports = {
   unBlockUser,
   profileDetails,
   verifyMail,
+  NotificationCount,
 };

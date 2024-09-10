@@ -6,6 +6,7 @@ const {
   verifyMail,
   newPassword,
   forgotPassword,
+  NotificationCount,
 } = require("../controllers/user");
 const { verifyTokenUser } = require("../middlewares/auth");
 
@@ -40,6 +41,7 @@ userRouter.post("/register", signup);
 userRouter.post("/login", login);
 userRouter.post("/verify-mail/:id", verifyMail);
 userRouter.get("/profile", verifyTokenUser, profileDetails);
+userRouter.get("/notification", verifyTokenUser, NotificationCount);
 
 userRouter.get("/packages", packages);
 userRouter.get("/order/:id", verifyTokenUser, getOrderData);
