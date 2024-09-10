@@ -127,7 +127,7 @@ const accountSchema = new mongoose.Schema(
       type: String,
     },
     amountSize: {
-      type: String,
+      type: Number,
       required: true,
     },
     status: {
