@@ -523,7 +523,7 @@ const ApproveOrder = async (req, res) => {
           referralUser.my_referrals.push({
             user: user.email,
             earned: referralAmount,
-            amountSize: account.amountSize,
+            amountSize: Number(account.amountSize),
             date: new Date(),
           });
 
