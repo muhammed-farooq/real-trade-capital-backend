@@ -335,7 +335,7 @@ const checkAndTransferPayment = async (orderData) => {
     const balance = parseFloat(tronWebInstance.fromSun(balanceInSun));
     console.log("balance :", balance);
 
-    if (balance <= orderData.price) return true;
+    if (balance >= orderData.price) return true;
     else return false;
   } catch (error) {
     if (error.response) {
