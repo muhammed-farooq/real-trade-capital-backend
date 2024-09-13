@@ -42,6 +42,147 @@ const generateUniqueAccountName = async () => {
   return uniqueName;
 };
 
+// const placeOrder = async (req, res) => {
+//   try {
+//     const { configureAccount, billingDetails, payment, user, package } =
+//       req.body;
+
+//     // Validate required fields
+//     if (!configureAccount || !billingDetails || !payment || !user || !package) {
+//       return res
+//         .status(400)
+//         .send({ errMsg: "All required fields must be provided" });
+//     }
+
+//     // Validate configureAccount fields
+//     if (
+//       !configureAccount.price ||
+//       !configureAccount.platform ||
+//       !configureAccount.accountType ||
+//       !configureAccount.accountSize
+//     ) {
+//       return res
+//         .status(400)
+//         .send({ errMsg: "Configuration account details are incomplete" });
+//     }
+
+//     // Validate billingDetails fields
+//     if (
+//       !billingDetails.firstName ||
+//       !billingDetails.lastName ||
+//       !billingDetails.phone ||
+//       !billingDetails.mail ||
+//       !billingDetails.street ||
+//       !billingDetails.city ||
+//       !billingDetails.postalCode ||
+//       !billingDetails.dateOfBirth
+//     ) {
+//       return res.status(400).send({ errMsg: "Billing details are incomplete" });
+//     }
+
+//     // Validate payment method
+//     if (!payment) {
+//       return res.status(400).send({ errMsg: "Payment method is required" });
+//     }
+//     // Check if user exists
+//     const userData = await User.findById(user);
+//     if (!userData) {
+//       return res.status(404).send({ errMsg: "User not found" });
+//     }
+//     const packageData = await Package.findById({ _id: package });
+//     if (!packageData) {
+//       return res.status(404).send({ errMsg: "Package not found" });
+//     }
+//     const tronWebInstance = createTronWebInstance(process.env.PRIVATE_KEY);
+//     const account = await tronWebInstance.createAccount(); // Create a new TRX account for this payment
+//     const paymentAddress = account.address.base58;
+//     const privateKey = account.privateKey;
+//     // const address =await
+//     // Update user details if necessary
+//     if (!userData.phone) userData.phone = billingDetails.phone;
+//     if (!userData.address) userData.address = {};
+//     if (!userData.address.street)
+//       userData.address.street = billingDetails.street;
+//     if (!userData.address.city) userData.address.city = billingDetails.city;
+//     if (!userData.address.postalCode)
+//       userData.address.postalCode = billingDetails.postalCode;
+//     if (!userData.address.country)
+//       userData.address.country = billingDetails.country;
+//     if (!userData.dateOfBirth)
+//       userData.dateOfBirth = billingDetails.dateOfBirth;
+//     await userData.save();
+
+//     // Fetch package details
+
+//     // Create a new order
+//     const newOrderData = {
+//       name: `${billingDetails.firstName} ${billingDetails.lastName}`,
+//       userId: user,
+//       package,
+//       privateKey,
+//       paymentAddress,
+//       price: Number(configureAccount.price),
+//       platform: configureAccount.platform,
+//       step: configureAccount.accountType,
+//       amountSize: configureAccount.accountSize,
+//       paymentMethod: payment,
+//       country: billingDetails.country,
+//       phone: billingDetails.phone,
+//       mail: billingDetails.mail,
+//       isCouponApplied: !!configureAccount.coupon, // double exclamation marks to ensure it's a boolean
+//       couponRedusedAmount: Number(configureAccount.couponRedusedAmount), // can remain as is
+//       billingDetails: {
+//         title: billingDetails.title,
+//         postalCode: billingDetails.postalCode,
+//         country: billingDetails.country,
+//         city: billingDetails.city,
+//         street: billingDetails.street,
+//         dateOfBirth: billingDetails.dateOfBirth,
+//       },
+//     };
+
+//     // Conditionally add the coupon field if it exists
+//     if (configureAccount.coupon) {
+//       newOrderData.coupon = configureAccount.coupon;
+//     }
+//     const newOrder = new Order(newOrderData);
+//     const savedOrder = await newOrder.save();
+
+//     // Create a new account
+//     const MinimumTrading = {
+//       PhaseOne: packageData.evaluationStage.PhaseOne.MinimumTradingDays,
+//       Funded: packageData.fundedStage.MinimumTradingDays,
+//       ...(packageData.evaluationStage.PhaseTwo && {
+//         PhaseTwo: packageData.evaluationStage.PhaseTwo.MinimumTradingDays,
+//       }),
+//     };
+//     const uniqueAccountName = await generateUniqueAccountName();
+//     const newAccount = new Account({
+//       userId: user,
+//       name: `${billingDetails.firstName} ${billingDetails.lastName}`,
+//       order: savedOrder._id,
+//       package,
+//       amountSize: configureAccount.accountSize,
+//       platform: configureAccount.platform,
+//       step: configureAccount.accountType,
+//       mail: billingDetails.mail,
+//       paymentMethod: payment,
+//       MinimumTrading,
+//       accountName: uniqueAccountName,
+//     });
+//     await newAccount.save();
+
+//     res.status(201).send({
+//       msg: "Order placed successfully",
+//       orderId: newOrder._id,
+//       paymentAddress,
+//     });
+//   } catch (error) {
+//     console.error(error.message);
+//     res.status(500).send({ errMsg: "Internal server error" });
+//   }
+// };
+
 const placeOrder = async (req, res) => {
   try {
     const { configureAccount, billingDetails, payment, user, package } =
@@ -84,71 +225,110 @@ const placeOrder = async (req, res) => {
     if (!payment) {
       return res.status(400).send({ errMsg: "Payment method is required" });
     }
+
     // Check if user exists
     const userData = await User.findById(user);
     if (!userData) {
       return res.status(404).send({ errMsg: "User not found" });
     }
-    const packageData = await Package.findById({ _id: package });
+
+    // Check if package exists
+    const packageData = await Package.findById(package);
     if (!packageData) {
       return res.status(404).send({ errMsg: "Package not found" });
     }
-    const tronWebInstance = createTronWebInstance(process.env.PRIVATE_KEY);
-    const account = await tronWebInstance.createAccount(); // Create a new TRX account for this payment
-    const paymentAddress = account.address.base58;
-    const privateKey = account.privateKey;
-    // const address =await
-    // Update user details if necessary
-    if (!userData.phone) userData.phone = billingDetails.phone;
-    if (!userData.address) userData.address = {};
-    if (!userData.address.street)
-      userData.address.street = billingDetails.street;
-    if (!userData.address.city) userData.address.city = billingDetails.city;
-    if (!userData.address.postalCode)
-      userData.address.postalCode = billingDetails.postalCode;
-    if (!userData.address.country)
-      userData.address.country = billingDetails.country;
-    if (!userData.dateOfBirth)
-      userData.dateOfBirth = billingDetails.dateOfBirth;
-    await userData.save();
 
-    // Fetch package details
-
-    // Create a new order
-    const newOrderData = {
-      name: `${billingDetails.firstName} ${billingDetails.lastName}`,
+    // Check if an existing pending order exists
+    let existingOrder = await Order.findOne({
       userId: user,
-      package,
-      privateKey,
-      paymentAddress,
-      price: Number(configureAccount.price),
-      platform: configureAccount.platform,
-      step: configureAccount.accountType,
-      amountSize: configureAccount.accountSize,
-      paymentMethod: payment,
-      country: billingDetails.country,
-      phone: billingDetails.phone,
-      mail: billingDetails.mail,
-      isCouponApplied: !!configureAccount.coupon, // double exclamation marks to ensure it's a boolean
-      couponRedusedAmount: Number(configureAccount.couponRedusedAmount), // can remain as is
-      billingDetails: {
+      txnStatus: "Pending",
+      orderStatus: "Pending",
+    });
+
+    let paymentAddress;
+    let privateKey;
+
+    if (existingOrder) {
+      // If a pending order exists, reuse the existing order and update the necessary fields
+      paymentAddress = existingOrder.paymentAddress;
+      privateKey = existingOrder.privateKey;
+
+      // Update the order status to pending again and other necessary fields
+      existingOrder.orderStatus = "Pending";
+      existingOrder.paymentMethod = payment;
+      existingOrder.price = Number(configureAccount.price);
+      existingOrder.platform = configureAccount.platform;
+      existingOrder.amountSize = configureAccount.accountSize;
+      existingOrder.step = configureAccount.accountType;
+      existingOrder.createdAt = new Date();
+      // Update billing details
+      existingOrder.billingDetails = {
         title: billingDetails.title,
         postalCode: billingDetails.postalCode,
         country: billingDetails.country,
         city: billingDetails.city,
         street: billingDetails.street,
         dateOfBirth: billingDetails.dateOfBirth,
-      },
-    };
+      };
 
-    // Conditionally add the coupon field if it exists
-    if (configureAccount.coupon) {
-      newOrderData.coupon = configureAccount.coupon;
+      if (configureAccount.coupon) {
+        // If the new order has a coupon, update the coupon details
+        existingOrder.isCouponApplied = true;
+        existingOrder.couponRedusedAmount = Number(
+          configureAccount.couponRedusedAmount
+        );
+        existingOrder.coupon = configureAccount.coupon;
+      } else {
+        // If the new order does not have a coupon, remove the previous coupon details
+        existingOrder.isCouponApplied = false;
+        existingOrder.couponRedusedAmount = 0; // Set to 0 since no discount is applied
+        existingOrder.coupon = null; // Remove the coupon information
+      }
+
+      await existingOrder.save();
+    } else {
+      // If no pending order, create a new TRX account and new order
+      const tronWebInstance = createTronWebInstance(process.env.PRIVATE_KEY);
+      const account = await tronWebInstance.createAccount();
+      paymentAddress = account.address.base58;
+      privateKey = account.privateKey;
+
+      // Create a new order
+      const newOrderData = {
+        name: `${billingDetails.firstName} ${billingDetails.lastName}`,
+        userId: user,
+        package,
+        privateKey,
+        paymentAddress,
+        price: Number(configureAccount.price),
+        platform: configureAccount.platform,
+        step: configureAccount.accountType,
+        amountSize: configureAccount.accountSize,
+        paymentMethod: payment,
+        country: billingDetails.country,
+        phone: billingDetails.phone,
+        mail: billingDetails.mail,
+        isCouponApplied: !!configureAccount.coupon,
+        couponRedusedAmount: Number(configureAccount.couponRedusedAmount),
+        billingDetails: {
+          title: billingDetails.title,
+          postalCode: billingDetails.postalCode,
+          country: billingDetails.country,
+          city: billingDetails.city,
+          street: billingDetails.street,
+          dateOfBirth: billingDetails.dateOfBirth,
+        },
+      };
+
+      if (configureAccount.coupon) {
+        newOrderData.coupon = configureAccount.coupon;
+      }
+
+      existingOrder = new Order(newOrderData);
+      await existingOrder.save();
     }
-    const newOrder = new Order(newOrderData);
-    const savedOrder = await newOrder.save();
 
-    // Create a new account
+    // Create or update the account for this order
     const MinimumTrading = {
       PhaseOne: packageData.evaluationStage.PhaseOne.MinimumTradingDays,
       Funded: packageData.fundedStage.MinimumTradingDays,
@@ -156,11 +336,12 @@ const placeOrder = async (req, res) => {
         PhaseTwo: packageData.evaluationStage.PhaseTwo.MinimumTradingDays,
       }),
     };
+
     const uniqueAccountName = await generateUniqueAccountName();
-    const newAccount = new Account({
+    const accountData = {
       userId: user,
       name: `${billingDetails.firstName} ${billingDetails.lastName}`,
-      order: savedOrder._id,
+      order: existingOrder._id,
       package,
       amountSize: configureAccount.accountSize,
       platform: configureAccount.platform,
@@ -169,12 +350,25 @@ const placeOrder = async (req, res) => {
       paymentMethod: payment,
       MinimumTrading,
       accountName: uniqueAccountName,
-    });
-    await newAccount.save();
+      createdAt: new Date(), // Update createdAt to the current date/time
+    };
+
+    // Check if an account already exists for the order
+    let existingAccount = await Account.findOne({ order: existingOrder._id });
+    if (existingAccount) {
+      // Update the existing account and the createdAt field
+      Object.assign(existingAccount, accountData);
+      existingAccount.createdAt = new Date(); // Update the createdAt field to the current time
+      await existingAccount.save();
+    } else {
+      // Create a new account if none exists
+      const newAccount = new Account(accountData);
+      await newAccount.save();
+    }
 
     res.status(201).send({
       msg: "Order placed successfully",
-      orderId: newOrder._id,
+      orderId: existingOrder._id,
       paymentAddress,
     });
   } catch (error) {
