@@ -340,7 +340,7 @@ const placeOrder = async (req, res) => {
     const uniqueAccountName = await generateUniqueAccountName();
     const accountData = {
       userId: user,
-      name: `${billingDetails.firstName} ${billingDetails.lastName}`,
+      name: `${billingDetails.firstName}${billingDetails.lastName}`,
       order: existingOrder._id,
       package,
       amountSize: configureAccount.accountSize,
