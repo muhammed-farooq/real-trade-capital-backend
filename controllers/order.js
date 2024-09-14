@@ -429,7 +429,7 @@ const getOrderData = async (req, res) => {
       // console.log(orderData);
       orderData
         ? res.status(200).json({ orderData })
-        : res.status(504).json({ errMsg: "Somthig wrong" });
+        : res.status(504).json({ errMsg: "Soothing wrong" });
     }
   } catch (error) {
     console.log(error);
@@ -437,10 +437,40 @@ const getOrderData = async (req, res) => {
     res.status(504).json({ errMsg: "Invalid Id Check the path" });
   }
 };
+const checkAndTransferPayment = async (orderData) => {
+  const tronWebInstance = createTronWebInstance(orderData.privateKey);
+  const usdtContract = await initializeUsdtContract(tronWebInstance);
+
+  try {
+    const usdtBalance = await usdtContract.methods
+      .balanceOf(orderData.paymentAddress)
+      .call();
+    const balanceInSun = usdtBalance.toString();
+
+    const balance = parseFloat(tronWebInstance.fromSun(balanceInSun));
+    console.log("balance :", balance);
+
+    if (balance >= orderData.price) return true;
+    else return false;
+  } catch (error) {
+    if (error.response) {
+      console.error("Error response data:", error.response.data);
+      console.error("Error response status:", error.response.status);
+      console.error("Error response headers:", error.response.headers);
+    } else if (error.request) {
+      console.error("Error request data:", error.request);
+    } else {
+      console.error("Error message:", error);
+    }
+    return { success: false, transaction: null };
+  }
+};
 
 const paymentCheck = async (req, res) => {
   try {
     const { id } = req.params;
+    console.log(id, "zzzzzzzzzzzzzz");
+    
     if (id) {
       const orderData = await Order.findById(id);
       // console.log(orderData);
@@ -514,34 +544,6 @@ const paymentCheck = async (req, res) => {
     console.log(error);
 
     res.status(504).json({ errMsg: "Invalid Id Check the path" });
-  }
-};
-const checkAndTransferPayment = async (orderData) => {
-  const tronWebInstance = createTronWebInstance(orderData.privateKey);
-  const usdtContract = await initializeUsdtContract(tronWebInstance);
-
-  try {
-    const usdtBalance = await usdtContract.methods
-      .balanceOf(orderData.paymentAddress)
-      .call();
-    const balanceInSun = usdtBalance.toString();
-
-    const balance = parseFloat(tronWebInstance.fromSun(balanceInSun));
-    console.log("balance :", balance);
-
-    if (balance >= orderData.price) return true;
-    else return false;
-  } catch (error) {
-    if (error.response) {
-      console.error("Error response data:", error.response.data);
-      console.error("Error response status:", error.response.status);
-      console.error("Error response headers:", error.response.headers);
-    } else if (error.request) {
-      console.error("Error request data:", error.request);
-    } else {
-      console.error("Error message:", error);
-    }
-    return { success: false, transaction: null };
   }
 };
 
