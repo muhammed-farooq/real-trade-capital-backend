@@ -529,12 +529,12 @@ const paymentCheck = async (req, res) => {
             transaction: result.transaction,
           });
         } else {
-          res.status(203).json({});
+          return res.status(203).json({});
         }
       } else {
         res.status(504).json({ errMsg: "Order not fount" });
       }
-      res.status(200).json({ orderData });
+      return res.status(200).json({ orderData });
     } else {
       return res
         .status(400)
