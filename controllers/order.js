@@ -470,7 +470,7 @@ const paymentCheck = async (req, res) => {
   try {
     const { id } = req.params;
     console.log(id, "zzzzzzzzzzzzzz");
-    
+
     if (id) {
       const orderData = await Order.findById(id);
       // console.log(orderData);
@@ -529,7 +529,7 @@ const paymentCheck = async (req, res) => {
             transaction: result.transaction,
           });
         } else {
-          res.status(504).json({ errMsg: "Order not fount" });
+          res.status(203).json({});
         }
       } else {
         res.status(504).json({ errMsg: "Order not fount" });
