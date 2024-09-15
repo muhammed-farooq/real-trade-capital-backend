@@ -3,6 +3,7 @@ const bcrypt = require("bcrypt");
 const Joi = require("joi");
 const { generateToken } = require("../middlewares/auth");
 const { Resend } = require("resend");
+const verification = require("../assets/html/verification");
 
 const resend = new Resend(process.env.RESEND_SECRET_KEY);
 let msg, errMsg;
@@ -61,41 +62,16 @@ const signup = async (req, res) => {
       is_affiliate: !!referralCode,
     });
 
-    await newUser.save();
-
     // Send verification email after user is created
     const verificationLink = `${process.env.API_URL}/verify/${newUser._id}`;
-    const htmlContent = ` <html>
-      <body style="font-family: Arial, sans-serif; background-color: #f7f7f7; padding: 20px; margin: 0;">
-        <div style="max-width: 600px; margin: auto; background-color: #ffffff; padding: 20px; border-radius: 8px;">
-          <h2 style="color: #333333; text-align: center;">Welcome to Our Service, ${firstName} ${lastName}!</h2>
-          <p style="color: #555555; text-align: center;">Thank you for signing up. Please confirm your email address by clicking the button below:</p>
-          <div style="text-align: center; margin: 20px 0;">
-            <a href="${verificationLink}" style="display: inline-block; padding: 10px 20px; color: white; background-color: #007bff; border-radius: 5px; text-decoration: none;">Confirm Email</a>
-          </div>
-          <p style="color: #555555; text-align: center;">If you did not sign up for this account, you can safely ignore this email.</p>
-          <hr style="border: 0; border-top: 1px solid #eeeeee; margin: 20px 0;"/>
-          <footer style="color: #999999; text-align: center;">
-            <p>&copy; ${new Date().getFullYear()} Your Company. All rights reserved.</p>
-            <p>
-              <a href="${
-                process.env.API_URL
-              }" style="color: #007bff; text-decoration: none;">Visit our website</a> | 
-              <a href="${
-                process.env.API_URL
-              }/new-challenge" style="color: #007bff; text-decoration: none;">new-challenge</a>
-            </p>
-          </footer>
-        </div>
-      </body>
-      </html>
-    `;
+    const userName = `${firstName} ${lastName}`;
+    const htmlContent = verification(verificationLink, userName);
 
     try {
       await resend.emails.send({
         from: process.env.WEBSITE_MAIL,
         to: email,
-        subject: "Verification mail from REAL TRADE CAPITAL",
+        subject: "Verification mail",
         html: htmlContent,
       });
       console.log("Verification email sent successfully.");
@@ -105,6 +81,7 @@ const signup = async (req, res) => {
         .status(500)
         .json({ errMsg: "Failed to send verification email." });
     }
+    await newUser.save();
 
     res.status(201).json({ msg: "Registration Success" });
   } catch (error) {
@@ -256,42 +233,16 @@ const forgotPassword = async (req, res) => {
       });
     }
     const verificationLink = `${process.env.API_URL}/new-password/${user._id}`;
-    const htmlContent = ` <html>
-      <body style="font-family: Arial, sans-serif; background-color: #f7f7f7; padding: 20px; margin: 0;">
-        <div style="max-width: 600px; margin: auto; background-color: #ffffff; padding: 20px; border-radius: 8px;">
-          <h2 style="color: #333333; text-align: center;">Welcome to Real Trade Capital, ${
-            user?.first_name
-          } ${user?.last_name}!</h2>
-          <p style="color: #555555; text-align: center;">To create new password click the button below:</p>
-          <div style="text-align: center; margin: 20px 0;">
-            <a href="${verificationLink}" style="display: inline-block; padding: 10px 20px; color: white; background-color: #007bff; border-radius: 5px; text-decoration: none;">New Password</a>
-          </div>
-          <p style="color: #555555; text-align: center;">If you did not sign up for this account, you can safely ignore this email.</p>
-          <hr style="border: 0; border-top: 1px solid #eeeeee; margin: 20px 0;"/>
-          <footer style="color: #999999; text-align: center;">
-            <p>&copy; ${new Date().getFullYear()} Your Company. All rights reserved.</p>
-            <p>
-              <a href='${
-                process.env.API_URL
-              }' style="color: #007bff; text-decoration: none;">Visit our website</a> | 
-              <a href="${
-                process.env.API_URL
-              }/new-challenge" style="color: #007bff; text-decoration: none;">new-challenge</a>
-            </p>
-          </footer>
-        </div>
-      </body>
-      </html>
-    `;
+    const userName = `${user?.first_name} ${user?.last_name}`;
+    const htmlContent = verification.forgotMail(verificationLink, userName);
 
     try {
       await resend.emails.send({
         from: process.env.WEBSITE_MAIL,
         to: email,
-        subject: "Forgot Password from REAL TRADE CAPITAL",
+        subject: "Forgot Password",
         html: htmlContent,
       });
-      console.log("Verification email sent successfully.");
     } catch (emailError) {
       console.error("Error sending email:", emailError);
       return res

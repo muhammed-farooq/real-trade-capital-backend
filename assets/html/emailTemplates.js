@@ -1,4 +1,5 @@
 const footer = require("./footer");
+const header = require("./header");
 
 const emailTemplate = (body) => `
 <!DOCTYPE html>
@@ -29,7 +30,7 @@ const emailTemplate = (body) => `
         <tbody>
           <tr>
             <td valign="top" style="padding: 0; margin: 0">  
-            ${header()}  
+            ${header()}
             ${body}      
             ${footer()}
             </td>

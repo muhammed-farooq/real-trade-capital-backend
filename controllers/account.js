@@ -3,6 +3,12 @@ const CryptoJS = require("crypto-js");
 const User = require("../models/user");
 const { notification } = require("./common");
 const { Resend } = require("resend");
+const {
+  toNext,
+  accountFunded,
+  accountPhaseTwo,
+  accountFailed,
+} = require("../assets/html/account");
 
 const resend = new Resend(process.env.RESEND_SECRET_KEY);
 ``;
@@ -98,6 +104,21 @@ const toNextStage = async (req, res) => {
 
     account.toNextStep = true;
     account.requestedOn = new Date();
+    const htmlContentForAdmin = toNext(account.accountName);
+
+    try {
+      await resend.emails.send({
+        from: process.env.WEBSITE_MAIL,
+        to: process.env.ADMIN_OFFICIAL,
+        subject: "New Phase Upgrade Request Notification",
+        html: htmlContentForAdmin,
+      });
+    } catch (emailError) {
+      console.error("Error sending email:", emailError);
+      return res
+        .status(500)
+        .json({ errMsg: "Failed to send verification email." });
+    }
     await account.save();
 
     res.status(200).json({ account, msg: "Request sent successfully." });
@@ -172,41 +193,27 @@ const ApproveRequest = async (req, res) => {
     user.notificationsCount += 1;
     await account.save();
     await user.save();
-    const verificationLink = `${process.env.API_URL}/verify/`;
-    const htmlContent = ` <html>
-      <body style="font-family: Arial, sans-serif; background-color: #f7f7f7; padding: 20px; margin: 0;">
-        <div style="max-width: 600px; margin: auto; background-color: #ffffff; padding: 20px; border-radius: 8px;">
-          <h2 style="color: #333333; text-align: center;">Welcome to Our Service,      !</h2>
-          <p style="color: #555555; text-align: center;">Thank you for signing up. Please confirm your email address by clicking the button below:</p>
-          <div style="text-align: center; margin: 20px 0;">
-            <a href="${verificationLink}" style="display: inline-block; padding: 10px 20px; color: white; background-color: #007bff; border-radius: 5px; text-decoration: none;">Confirm Email</a>
-          </div>
-          <p style="color: #555555; text-align: center;">If you did not sign up for this account, you can safely ignore this email.</p>
-          <hr style="border: 0; border-top: 1px solid #eeeeee; margin: 20px 0;"/>
-          <footer style="color: #999999; text-align: center;">
-            <p>&copy; ${new Date().getFullYear()} Your Company. All rights reserved.</p>
-            <p>
-              <a href="${
-                process.env.API_URL
-              }" style="color: #007bff; text-decoration: none;">Visit our website</a> | 
-              <a href="${
-                process.env.API_URL
-              }/new-challenge" style="color: #007bff; text-decoration: none;">new-challenge</a>
-            </p>
-          </footer>
-        </div>
-      </body>
-      </html>
-    `;
+    const accountName = account.accountName;
+    const userName = account.name;
+    const htmlContent =
+      account.phase == "Funded"
+        ? accountFunded(accountName, userName)
+        : (account.phase = "Phase Two"
+            ? accountPhaseTwo(accountName, userName)
+            : "");
 
     try {
       await resend.emails.send({
         from: process.env.WEBSITE_MAIL,
         to: user.email,
-        subject: "Verification mail from REAL TRADE CAPITAL",
+        subject:
+          account.phase == "Funded"
+            ? "Passed to Funded Stage"
+            : (account.phase = "Phase Two"
+                ? "Passed to Second Phase"
+                : "New Notification"),
         html: htmlContent,
       });
-      console.log("Verification email sent successfully.");
     } catch (emailError) {
       console.error("Error sending email:", emailError);
       return res
@@ -255,41 +262,16 @@ const rejectRequest = async (req, res) => {
     user.notificationsCount += 1;
     await user.save();
     await account.save();
-    const verificationLink = `${process.env.API_URL}/verify/`;
-    const htmlContent = ` <html>
-      <body style="font-family: Arial, sans-serif; background-color: #f7f7f7; padding: 20px; margin: 0;">
-        <div style="max-width: 600px; margin: auto; background-color: #ffffff; padding: 20px; border-radius: 8px;">
-          <h2 style="color: #333333; text-align: center;">Welcome to Our Service,      !</h2>
-          <p style="color: #555555; text-align: center;">Thank you for signing up. Please confirm your email address by clicking the button below:</p>
-          <div style="text-align: center; margin: 20px 0;">
-            <a href="${verificationLink}" style="display: inline-block; padding: 10px 20px; color: white; background-color: #007bff; border-radius: 5px; text-decoration: none;">Confirm Email</a>
-          </div>
-          <p style="color: #555555; text-align: center;">If you did not sign up for this account, you can safely ignore this email.</p>
-          <hr style="border: 0; border-top: 1px solid #eeeeee; margin: 20px 0;"/>
-          <footer style="color: #999999; text-align: center;">
-            <p>&copy; ${new Date().getFullYear()} Your Company. All rights reserved.</p>
-            <p>
-              <a href="${
-                process.env.API_URL
-              }" style="color: #007bff; text-decoration: none;">Visit our website</a> | 
-              <a href="${
-                process.env.API_URL
-              }/new-challenge" style="color: #007bff; text-decoration: none;">new-challenge</a>
-            </p>
-          </footer>
-        </div>
-      </body>
-      </html>
-    `;
-
+    const accountName = account.accountName;
+    const userName = account.name;
+    const htmlContent = accountFailed(accountName, userName);
     try {
       await resend.emails.send({
         from: process.env.WEBSITE_MAIL,
         to: user.email,
-        subject: "Verification mail from REAL TRADE CAPITAL",
+        subject: "Breach Out Notification",
         html: htmlContent,
       });
-      console.log("Verification email sent successfully.");
     } catch (emailError) {
       console.error("Error sending email:", emailError);
       return res

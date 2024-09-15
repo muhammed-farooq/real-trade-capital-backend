@@ -1,7 +1,7 @@
 const { emailTemplate } = require("./emailTemplates");
 
 const firstTrade = () =>
-    emailTemplate(`              <table
+  emailTemplate(`              <table
                   cellspacing="0"
                   cellpadding="0"
         align="center"
@@ -667,4 +667,4 @@ const firstTrade = () =>
       </tbody>
   </table>`);
 
-  module.exports = firstTrade;
+module.exports = firstTrade;
