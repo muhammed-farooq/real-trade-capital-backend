@@ -1,14 +1,18 @@
-const orderApprove = () =>
+const { emailTemplate } = require("./emailTemplates");
+
+const orderApprove = (userName) =>
   emailTemplate(`
         <img
-                                                src="https://res.cloudinary.com/dj5inosqh/image/upload/v1725905229/IMG_1434_rqb5ib.png"
-                                                alt="Header"
-                                                style="
+src="https://res.cloudinary.com/dj5inosqh/image/upload/v1725905229/IMG_1434_rqb5ib.png"
+alt="Header"
+style="
                                                   display: block;
                                                   border: 0;
                                                   outline: none;
                                                   text-decoration: none;
                                                   padding-top: 5px;
+                                                      margin-left: auto;
+    margin-right: auto;
                                                 "
                                                 width="600"
                                                 
@@ -21,8 +25,12 @@ const orderApprove = () =>
                                 cellspacing="0"
                                 width="100%"
                                 style="
-                                  border-collapse: collapse;
-                                  border-spacing: 0px;
+                                 border-collapse: collapse;
+                          border-spacing: 0px;
+                          background-color: #ffffff;
+                              margin-left: auto;
+    margin-right: auto;
+                          width: 600px;margin-top: 30px;
                                 "
                               >
                                 <tbody>
@@ -65,7 +73,7 @@ const orderApprove = () =>
                                                   color: #000000;
                                                 "
                                               >
-                                                <strong>Hi shahin</strong>
+                                                <strong>Hi ${userName}</strong>
                                               </h2>
                                             </td>
                                           </tr>

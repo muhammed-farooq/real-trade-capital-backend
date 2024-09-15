@@ -8,40 +8,64 @@ const emailTemplate = (body) => `
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Document</title>
+      <style>
+      /* Email clients support only limited CSS, so test thoroughly */
+      .center-content {
+        padding: 0 !important;
+        margin: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+      }
+
+      /* Fallback for clients that don't support Flexbox */
+      .fallback-center {
+        text-align: center !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+    </style>
   </head>
+  
   <body>
-    <div style="background-color: #ffffff">
+    <div style="background-color: #ffffff !important;">
       <table
         width="100%"
         cellspacing="0"
         cellpadding="0"
         style="
-          border-collapse: collapse;
-          border-spacing: 0px;
-          padding: 0;
-          margin: 0;
-          width: 100%;
-          height: 100%;
-          background-repeat: repeat;
-          background-position: center top;
-          background-color: #ffffff;
+          border-collapse: collapse !important;
+          border-spacing: 0px !important;
+          padding: 0 !important;
+          margin: 0 !important;
+          width: 100% !important;
+          height: 100% !important;
+          background-repeat: repeat !important;
+          background-position: center top !important;
+          background-color: #ffffff !important;
         "
       >
         <tbody>
           <tr>
-            <td valign="top" style="padding: 0; margin: 0">  
-            ${header()}
-            ${body}      
-            ${footer()}
-            </td>
+            <td class="fallback-center center-content" style="
+            padding:0;
+            margin:0;
+            ">  
+              <div style="display:flex!important;
+            flex-direction: column!important;
+            justify-content: center;
+            align-items: center;!important">
+              ${header()}
+              ${body}      
+              ${footer()}
+        </div>
+              </td>
           </tr>
         </tbody>
       </table>
     </div>
   </body>
 </html>
-
-  </html>
 `;
 
 // Exporting everything from one file

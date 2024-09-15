@@ -320,6 +320,7 @@ const footer = () => `
                             </td>
                           </tr>
                         </tbody>
-                      </table>`;
+                      </table>
+`;
 
 module.exports = footer;

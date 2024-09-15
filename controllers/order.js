@@ -24,6 +24,104 @@ const createTronWebInstance = (privateKey) => {
   });
 };
 
+const fetchTotalUsersCount = async (req, res) => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date();
+    tomorrow.setHours(23, 59, 59, 999);
+
+    const lastWeek = new Date();
+    lastWeek.setDate(lastWeek.getDate() - 7);
+
+    const lastMonth = new Date();
+    lastMonth.setMonth(lastMonth.getMonth() - 1);
+
+    // Define the find queries for different timeframes
+    const findQueries = {
+      daily: { createdAt: { $gte: today, $lte: tomorrow }, txnStatus },
+      weekly: { createdAt: { $gte: lastWeek } },
+      total: {},
+    };
+
+    // Define aggregation pipelines for counting documents
+    const aggregatePipeline = (query) => [
+      { $match: query },
+      { $group: { _id: null, count: { $sum: 1 } } },
+    ];
+
+    // Perform aggregation for daily, weekly, and total user count
+    const [dailyCount, weeklyCount, totalCount] = await Promise.all([
+      userModel.aggregate(aggregatePipeline(findQueries.daily)),
+      userModel.aggregate(aggregatePipeline(findQueries.weekly)),
+      userModel.aggregate(aggregatePipeline(findQueries.total)),
+    ]);
+
+    // Create the result object
+    const result = {
+      daily: dailyCount[0]?.count || 0,
+      weekly: weeklyCount[0]?.count || 0,
+      total: totalCount[0]?.count || 0,
+    };
+    res.status(200).json(result);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Server side error!" });
+  }
+};
+
+const calculateTotalOrderAmounts = async (req, res) => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date();
+    tomorrow.setHours(23, 59, 59, 999);
+
+    const lastWeek = new Date();
+    lastWeek.setDate(lastWeek.getDate() - 7);
+
+    const lastMonth = new Date();
+    lastMonth.setMonth(lastMonth.getMonth() - 1);
+
+    // Define the find queries for different timeframes
+    const findQueries = {
+      daily: {
+        orderCreatedAt: { $gte: today, $lte: tomorrow },
+        orderStatus: "Completed",
+      },
+      weekly: { orderCreatedAt: { $gte: lastWeek }, orderStatus: "Completed" },
+      total: { orderStatus: "Completed" },
+    };
+
+    // Define aggregation pipelines for different timeframes
+    const aggregatePipeline = (query) => [
+      { $match: query },
+      { $group: { _id: null, total: { $sum: "$price" } } },
+    ];
+
+    let result;
+
+    const [dailyTotal, weeklyTotal, totalAmount] = await Promise.all([
+      Order.aggregate(aggregatePipeline(findQueries.daily)),
+      Order.aggregate(aggregatePipeline(findQueries.weekly)),
+      Order.aggregate(aggregatePipeline(findQueries.total)),
+    ]);
+    console.log(dailyTotal, weeklyTotal, totalAmount);
+
+    // Create the result object
+    result = {
+      daily: dailyTotal[0]?.total || 0,
+      weekly: weeklyTotal[0]?.total || 0,
+      total: totalAmount[0]?.total || 0,
+    };
+
+    res.status(200).json({ result });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Server side error!" });
+  }
+};
+
 // Function to initialize USDT contract
 const initializeUsdtContract = async (tronWebInstance) => {
   return await tronWebInstance.contract().at(USDT_CONTRACT_ADDRESS);
@@ -237,6 +335,38 @@ const placeOrder = async (req, res) => {
       return res.status(404).send({ errMsg: "User not found" });
     }
 
+    // Update user details if address or country is missing
+    let updated = false;
+
+    if (
+      !userData.address ||
+      !userData.address.street ||
+      !userData.address.city ||
+      !userData.address.postalCode
+    ) {
+      userData.address = {
+        postalCode: billingDetails.postalCode,
+        country: billingDetails.country,
+        city: billingDetails.city,
+        street: billingDetails.street,
+      };
+      updated = true;
+    }
+
+    if (!userData.dateOfBirth) {
+      userData.dateOfBirth = billingDetails.dateOfBirth;
+      updated = true;
+    }
+
+    if (!userData.phone) {
+      userData.phone = billingDetails.phone;
+      updated = true;
+    }
+
+    // If any fields were updated, save the changes to the user document
+    if (updated) {
+      await userData.save();
+    }
     // Check if package exists
     const packageData = await Package.findById(package);
     if (!packageData) {
@@ -249,6 +379,7 @@ const placeOrder = async (req, res) => {
       txnStatus: "Pending",
       orderStatus: "Pending",
     });
+    console.log(existingOrder, "hahahahhh");
 
     let paymentAddress;
     let privateKey;
@@ -372,12 +503,12 @@ const placeOrder = async (req, res) => {
     }
 
     res.status(201).send({
-      msg: "Order placed successfully",
+      // info: "Once",
       orderId: existingOrder._id,
       paymentAddress,
     });
   } catch (error) {
-    console.error(error.message);
+    console.error(error.message, error);
     res.status(500).send({ errMsg: "Internal server error" });
   }
 };
@@ -713,7 +844,7 @@ const ApproveOrder = async (req, res) => {
         `Your ${account.accountName} purchase ${order.orderStatus}`
       )
     );
-    const htmlContent = orderApprove;
+    const htmlContent = orderApprove(order.name);
     try {
       await resend.emails.send({
         from: process.env.WEBSITE_MAIL,
@@ -748,4 +879,5 @@ module.exports = {
   placeOrder,
   ApproveOrder,
   paymentCheck,
+  calculateTotalOrderAmounts,
 };

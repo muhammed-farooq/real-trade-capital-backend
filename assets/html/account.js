@@ -151,6 +151,8 @@ const accountPhaseTwo = (account, userName) =>
               outline: none;
               text-decoration: none;
               padding-top: 5px;
+                  margin-left: auto;
+    margin-right: auto;
             "
             width="600"
 
@@ -237,6 +239,8 @@ const accountPhaseTwo = (account, userName) =>
                           border-spacing: 0px;
                           background-color: #ffffff;
                           width: 600px;
+                              margin-left: auto;
+    margin-right: auto;
                         "
                       >
                         <tbody>
@@ -472,6 +476,8 @@ const accountFunded = (account, userName) =>
       outline: none;
       text-decoration: none;
       padding-top: 5px;
+          margin-left: auto;
+    margin-right: auto;
     "
     width="600"
     
@@ -489,6 +495,8 @@ const accountFunded = (account, userName) =>
                           border-spacing: 0px;
                           background-color: #ffffff;
                           width: 600px;
+                              margin-left: auto;
+    margin-right: auto;
                         "
                       >
                         <tbody>

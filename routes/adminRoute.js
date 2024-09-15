@@ -1,4 +1,4 @@
- const express = require("express");
+const express = require("express");
 const { login, profileDetails } = require("../controllers/admin");
 const { verifyTokenAdmin } = require("../middlewares/auth");
 const { packages, editPackage } = require("../controllers/package");
@@ -9,6 +9,7 @@ const {
   getOrderData,
   ApproveOrder,
   cancelOrder,
+  calculateTotalOrderAmounts,
 } = require("../controllers/order");
 const {
   getAllTheRequests,
@@ -48,6 +49,7 @@ adminRoute.route("/account/:id").get(verifyTokenAdmin, getAccountLists);
 adminRoute.get("/order", verifyTokenAdmin, getOrderLists);
 adminRoute.post("/order-approve", verifyTokenAdmin, ApproveOrder);
 adminRoute.post("/order-cancel", verifyTokenAdmin, cancelOrder);
+adminRoute.get("/sails-details", verifyTokenAdmin, calculateTotalOrderAmounts);
 adminRoute.get("/request", verifyTokenAdmin, getAllTheRequests);
 adminRoute.post("/request-approve", verifyTokenAdmin, ApproveRequest);
 adminRoute.post("/request-reject", verifyTokenAdmin, rejectRequest);
