@@ -83,12 +83,16 @@ const deleteWithdrawal = async (req, res) => {
 const getAllWithdrawals = async (req, res) => {
   try {
     const withdrawals = await Withdrawal.find().sort({ createdAt: -1 }); // Fetch all withdrawals
+    let userData;
+    if (req.query.id) {
+      userData = await User.findOne({ _id: req.query.id });
+    }
 
     if (!withdrawals || withdrawals.length === 0) {
       return res.status(404).json({ error: "No withdrawals found" });
     }
 
-    res.status(200).json({ success: true, withdrawals });
+    res.status(200).json({ success: true, withdrawals, userData });
   } catch (error) {
     console.error("Error fetching withdrawals:", error);
     res.status(500).json({ success: false, error: "Internal server error" });
