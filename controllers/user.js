@@ -3,7 +3,7 @@ const bcrypt = require("bcrypt");
 const Joi = require("joi");
 const { generateToken } = require("../middlewares/auth");
 const { Resend } = require("resend");
-const verification = require("../assets/html/verification");
+const {verification} = require("../assets/html/verification");
 
 const resend = new Resend(process.env.RESEND_SECRET_KEY);
 let msg, errMsg;
