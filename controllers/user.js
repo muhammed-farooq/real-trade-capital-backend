@@ -3,7 +3,7 @@ const bcrypt = require("bcrypt");
 const Joi = require("joi");
 const { generateToken } = require("../middlewares/auth");
 const { Resend } = require("resend");
-const {verification} = require("../assets/html/verification");
+const verification = require("../assets/html/verification");
 
 const resend = new Resend(process.env.RESEND_SECRET_KEY);
 let msg, errMsg;
@@ -65,7 +65,7 @@ const signup = async (req, res) => {
     // Send verification email after user is created
     const verificationLink = `${process.env.API_URL}/verify/${newUser._id}`;
     const userName = `${firstName} ${lastName}`;
-    const htmlContent = verification(verificationLink, userName);
+    const htmlContent = verification.verification(verificationLink, userName);
 
     try {
       await resend.emails.send({
