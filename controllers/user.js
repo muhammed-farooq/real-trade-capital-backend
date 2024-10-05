@@ -65,7 +65,7 @@ const signup = async (req, res) => {
     // Send verification email after user is created
     const verificationLink = `${process.env.API_URL}/verify/${newUser._id}`;
     const userName = `${firstName} ${lastName}`;
-    const htmlContent = verification(verificationLink, userName);
+    const htmlContent = verification.verification(verificationLink, userName);
 
     try {
       await resend.emails.send({
