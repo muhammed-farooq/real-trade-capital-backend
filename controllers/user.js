@@ -190,7 +190,7 @@ const newPassword = async (req, res) => {
       });
     }
     user.password = hashedPassword;
-    user.forgotPassword = false;
+    // user.forgotPassword = false;
     await user.save();
     res.status(200).json({
       msg: "Password changed successfully",
@@ -219,12 +219,12 @@ const forgotPassword = async (req, res) => {
     if (user.isBanned) {
       return res.status(401).json({ errMsg: "You are blocked", timeout: true });
     }
-    if (user.forgotPassword) {
-      return res.status(203).json({
-        info: "Please Check your mail, You already requested",
-        timeout: true,
-      });
-    }
+    // if (user.forgotPassword) {
+    //   return res.status(203).json({
+    //     info: "Please Check your mail, You already requested",
+    //     timeout: true,
+    //   });
+    // }
 
     if (!user.isVerify) {
       return res.status(201).json({
@@ -249,7 +249,7 @@ const forgotPassword = async (req, res) => {
         .status(500)
         .json({ errMsg: "Failed to send mail. please try again." });
     }
-    user.forgotPassword = true;
+    // user.forgotPassword = true;
     await user.save();
     res.status(200).json({
       info: "Please Check your mail for further instructions",
