@@ -311,28 +311,60 @@ const ApprovePayout = async (req, res) => {
   }
 };
 
+
 const rejectPayout = async (req, res) => {
   try {
-    const { note, payoutId } = req.body;
-    const payout = await Payout.findOne({ _id: payoutId });
-    if (!payout) {
-      console.log(`Payout not found for payoutId: ${payoutId}`);
-      return res.status(404).json({ errMsg: "Payout not found" });
-    }
-    console.log(note);
-    payout.payoutCancelledAt = new Date();
-    payout.note = note;
-    payout.txnStatus = "Cancelled";
-    payout.status = "Cancelled";
-    const user = await User.findById(payout.userId);
-    if (!user) {
-      console.log(`Account not found for accountI`);
-      return res.status(404).json({ error: "user not found" });
-    }
-    if (payout.account) {
+    const { formValue, note, payoutId } = req.body;
+
+    if (formValue) {
+      const { formValue, payoutId } = req.body;
+      console.log("Payout body:", req.body);
+
+      const { note } = formValue;
+      const { username, email, password, server, platform } = formValue;
+
+      const hashedPassword = encryptPassword(password);
+
+      if (
+        !formValue ||
+        !payoutId ||
+        !username ||
+        !email ||
+        !password ||
+        !server ||
+        !platform
+      ) {
+        console.log(`payout not found for payoutId: ${payoutId}`);
+        return res.status(404).json({ errMsg: "Fill the form" });
+      }
+      const payout = await Payout.findById(payoutId);
+      if (!payout) {
+        console.log(`payout not found for payoutId: ${payoutId}`);
+        return res.status(404).json({ errMsg: "payout not found" });
+      }
       const account = await Account.findOne({ _id: payout.account });
       if (!account) {
+        console.log(`Account not found for accountId: ${payout.account}`);
         return res.status(404).json({ errMsg: "Account not found" });
+      }
+      payout.payoutCancelledAt = new Date();
+      payout.txnStatus = "Cancelled";
+      payout.status = "Cancelled";
+      account.FundedStageCredentials = {
+        email,
+        username,
+        password: hashedPassword,
+        server,
+        platform,
+      };
+      payout.note = note;
+      account.fondedAccountNo = account.fondedAccountNo + 1;
+      account.withdrawIng = false;
+
+      const user = await User.findById(payout.userId);
+      if (!user) {
+        console.log(`Account not found for accountI`);
+        return res.status(404).json({ error: "user not found" });
       }
       user.notifications.push(
         notification(
@@ -342,43 +374,98 @@ const rejectPayout = async (req, res) => {
         )
       );
       user.notificationsCount += 1;
-      account.withdrawIng = false;
+      await user.save();
+      await payout.save();
+      console.log("payout updated and saved:", payout);
       await account.save();
-    }
-    if (payout.isAffiliate) {
-      user.notifications.push(
-        notification(
-          "/dashboard/payouts",
-          "err",
-          `$${payout.amount} withdrawal from affiliation ${payout.status}`
-        )
-      );
-      user.notificationsCount += 1;
-      user.withdrawIng = false;
-    }
-    await user.save();
-    await payout.save();
-    console.log("Payout updated and saved:", payout);
-    const userName = payout.name;
-    const htmlContent = withdrawalReject(userName);
+      console.log("payout updated and saved:", payout);
 
-    try {
-      await resend.emails.send({
-        from: process.env.WEBSITE_MAIL,
-        to: user.email,
-        subject: "Payout Request Update",
-        html: htmlContent,
-      });
-      console.log("Verification email sent successfully.");
-    } catch (emailError) {
-      console.error("Error sending email:", emailError);
-      return res
-        .status(500)
-        .json({ errMsg: "Failed to send verification email." });
+      const userName = payout.name;
+      const htmlContent = withdrawalReject(userName);
+
+      try {
+        await resend.emails.send({
+          from: process.env.WEBSITE_MAIL,
+          to: user.email,
+          subject: "Payout Request Update",
+          html: htmlContent,
+        });
+      } catch (emailError) {
+        console.error("Error sending email:", emailError);
+        return res
+          .status(500)
+          .json({ errMsg: "Failed to send verification email." });
+      }
+      res
+        .status(200)
+        .json({ success: true, msg: "Payout rejected successfully" });
+    } else if (note) {
+      const payout = await Payout.findOne({ _id: payoutId });
+      if (!payout) {
+        console.log(`Payout not found for payoutId: ${payoutId}`);
+        return res.status(404).json({ errMsg: "Payout not found" });
+      }
+      console.log(note);
+      payout.payoutCancelledAt = new Date();
+      payout.note = note;
+      payout.txnStatus = "Cancelled";
+      payout.status = "Cancelled";
+      const user = await User.findById(payout.userId);
+      if (!user) {
+        console.log(`Account not found for accountI`);
+        return res.status(404).json({ error: "user not found" });
+      }
+      if (payout.account) {
+        const account = await Account.findOne({ _id: payout.account });
+        if (!account) {
+          return res.status(404).json({ errMsg: "Account not found" });
+        }
+        user.notifications.push(
+          notification(
+            "/dashboard/payouts",
+            "err",
+            `$${payout.amount} withdrawal from ${account.accountName} ${payout.status}`
+          )
+        );
+        user.notificationsCount += 1;
+        account.withdrawIng = false;
+        await account.save();
+      }
+      if (payout.isAffiliate) {
+        user.notifications.push(
+          notification(
+            "/dashboard/payouts",
+            "err",
+            `$${payout.amount} withdrawal from affiliation ${payout.status}`
+          )
+        );
+        user.notificationsCount += 1;
+        user.withdrawIng = false;
+      }
+      await user.save();
+      await payout.save();
+      console.log("Payout updated and saved:", payout);
+      const userName = payout.name;
+      const htmlContent = withdrawalReject(userName);
+
+      try {
+        await resend.emails.send({
+          from: process.env.WEBSITE_MAIL,
+          to: user.email,
+          subject: "Payout Request Update",
+          html: htmlContent,
+        });
+        console.log("Verification email sent successfully.");
+      } catch (emailError) {
+        console.error("Error sending email:", emailError);
+        return res
+          .status(500)
+          .json({ errMsg: "Failed to send verification email." });
+      }
+      res
+        .status(200)
+        .json({ success: true, msg: "Payout rejected successfully" });
     }
-    res
-      .status(200)
-      .json({ success: true, msg: "Payout rejected successfully" });
   } catch (error) {
     console.error("Error approving order:", error);
     res.status(500).json({ success: false, errMsg: "Internal server error" });
