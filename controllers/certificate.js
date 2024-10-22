@@ -120,7 +120,7 @@ const generatePayoutCertificate = async (req, res) => {
         align: "left",
         width: 250,
       });
-      doc.fontSize(14).text("Francois Mercer CEO", 530, 450, {
+      doc.fontSize(14).text("Sebastian Marcellus CEO", 530, 450, {
         align: "left",
       });
       doc.end();
@@ -330,7 +330,7 @@ const generateAccountCertificate = async (req, res) => {
       // Images and signature
       doc.image(gift, doc.page.width / 2 - 75, 400, { width: 150 });
       doc.image(signature, 475, 400, { width: 250 });
-      doc.fontSize(14).text("Francois Mercer CEO", 530, 450, { align: "left" });
+      doc.fontSize(14).text("Sebastian Marcellus CEO", 530, 450, { align: "left" });
 
       doc.end();
     });

@@ -524,7 +524,7 @@ const affiliatePayoutRequest = async (req, res) => {
       paymentMethod: method,
       requestedOn: new Date(),
       TRC20Wallet,
-      amount,
+      amount:Number(amount),
       isAffiliate: true,
     });
     console.log(newPayout, userData);
