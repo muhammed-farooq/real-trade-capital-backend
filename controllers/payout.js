@@ -360,6 +360,11 @@ const rejectPayout = async (req, res) => {
       payout.note = note;
       account.fondedAccountNo = account.fondedAccountNo + 1;
       account.withdrawIng = false;
+      const fundedMinTradingDays = parseInt(account.MinimumTrading.Funded);
+      const currentDate = new Date();
+      account.MinimumTradingDays.Funded = new Date(
+        currentDate.setDate(currentDate.getDate() + fundedMinTradingDays)
+      );
 
       const user = await User.findById(payout.userId);
       if (!user) {
