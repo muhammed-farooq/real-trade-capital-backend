@@ -63,7 +63,7 @@ const userSchema = new mongoose.Schema(
     },
     affiliate_share: {
       type: Number,
-      default: 5,
+      default: 15,
     },
     affiliate_paidOut: {
       type: Number,
