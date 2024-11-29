@@ -65,7 +65,7 @@ adminRoute.post("/payout-reject", verifyTokenAdmin, rejectPayout);
 
 adminRoute.get("/withdrawal", verifyTokenAdmin, getAllWithdrawals);
 
-adminRoute.post("/withdrawal", verifyTokenAdmin, addWithdrawal);
+adminRoute.post("/withdrawal", addWithdrawal);
 
 adminRoute.patch("/withdrawal/:id", verifyTokenAdmin, deleteWithdrawal);
 
