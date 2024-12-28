@@ -294,7 +294,7 @@ const verifyMail = async (req, res) => {
 
 const allUsers = async (req, res) => {
   try {
-    const userData = await User.find();
+    const userData = await User.find().sort({ createdAt: -1 });
     console.log(userData);
     res.status(200).json({ userData });
   } catch (error) {
