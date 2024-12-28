@@ -785,13 +785,8 @@ const ApproveOrder = async (req, res) => {
       currentDate.setDate(currentDate.getDate() + phaseOneMinTradingDays)
     );
 
-    // console.log("Account updated and saved:", account);
-
-    // Update order status
     order.orderStatus = "Completed";
-    // console.log("Order status updated and saved:", order);
 
-    // Update user details if needed
     const user = await User.findById(account.userId);
     console.log("dddddddddddddddddddddddddddddddddddddddd", user);
 
@@ -808,9 +803,10 @@ const ApproveOrder = async (req, res) => {
           !isNaN(order.price) &&
           !isNaN(referralUser.affiliate_share)
         ) {
-          const orderPrice = order.couponRedusedAmount
-            ? order.price + order.couponRedusedAmount
-            : order.price;
+          // const orderPrice = order.couponRedusedAmount
+          //   ? order.price + order.couponRedusedAmount
+          //   : order.price;
+          const orderPrice = order.price;
           const referralAmount =
             (orderPrice * referralUser.affiliate_share) / 100;
           referralUser.wallet += referralAmount;
@@ -822,7 +818,6 @@ const ApproveOrder = async (req, res) => {
             amountSize: Number(account.amountSize),
             date: new Date(),
           });
-
           console.log(referralUser);
 
           await referralUser.save();
