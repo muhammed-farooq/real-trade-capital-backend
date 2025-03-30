@@ -519,31 +519,53 @@ const placeOrder = async (req, res) => {
 
 const getOrderLists = async (req, res) => {
   try {
-    const { search, filter, skip, path, role } = req.query;
-    console.log("Query Params:", skip, path, role, search);
+    const { search, filter, skip, path, role, startDate, endDate } = req.query;
+    console.log("Query Params:", skip, path, role, search, startDate, endDate);
     const { id } = req.payload;
     let orderList = [];
-    let limit = 10;
-
-    if (path === "/profile" || path === "/dashboard") {
-      limit = 5;
-    }
+    let limit = path === "/profile" || path === "/dashboard" ? 5 : 10;
 
     // Build search query
-    const searchQuery = search
-      ? {
-          $or: [
-            { name: { $regex: search, $options: "i" } }, // Case-insensitive search for name
-            { accountName: { $regex: search, $options: "i" } }, // Case-insensitive search for accountName
-            !isNaN(parseFloat(search))
-              ? { amountSize: parseFloat(search) }
-              : null, // Exact match for number
-          ].filter(Boolean),
-        }
-      : {};
+    const searchConditions = [];
+
+    // Handle spaces in search using regex
+    const formattedSearch = search ? search.replace(/\s+/g, "\\s*") : "";
+
+    // Text search on name and accountName
+    if (formattedSearch) {
+      searchConditions.push(
+        { name: { $regex: formattedSearch, $options: "i" } },
+        { accountName: { $regex: formattedSearch, $options: "i" } }
+      );
+
+      // Number search on amountSize
+      const parsedAmount = parseFloat(search);
+      if (!isNaN(parsedAmount)) {
+        searchConditions.push({ amountSize: parsedAmount });
+      }
+    }
+
+    // Date range filter on orderCreatedAt
+    const dateFilter = {};
+    if (startDate && !isNaN(new Date(startDate).getTime())) {
+      dateFilter.$gte = new Date(startDate);
+    }
+    if (endDate && !isNaN(new Date(endDate).getTime())) {
+      dateFilter.$lte = new Date(endDate);
+    }
+
+    // Combine queries using $and for date + search
+    const finalQuery = {
+      $and: [
+        ...(searchConditions.length ? [{ $or: searchConditions }] : []),
+        ...(Object.keys(dateFilter).length
+          ? [{ orderCreatedAt: dateFilter }]
+          : []),
+      ],
+    };
 
     if (role === "admin") {
-      orderList = await Order.find(searchQuery)
+      orderList = await Order.find(finalQuery)
         .skip(parseInt(skip) || 0)
         .limit(limit)
         .populate({
