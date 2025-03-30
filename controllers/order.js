@@ -397,6 +397,7 @@ const placeOrder = async (req, res) => {
       existingOrder.amountSize = configureAccount.accountSize;
       existingOrder.step = configureAccount.accountType;
       existingOrder.createdAt = new Date();
+      existingOrder.orderCreatedAt = new Date();
       // Update billing details
       existingOrder.billingDetails = {
         title: billingDetails.title,
@@ -443,6 +444,7 @@ const placeOrder = async (req, res) => {
         paymentMethod: payment,
         country: billingDetails.country,
         phone: billingDetails.phone,
+        orderCancelledAt: new Date(),
         mail: billingDetails.mail,
         isCouponApplied: !!configureAccount.coupon,
         couponRedusedAmount: Number(configureAccount.couponRedusedAmount),
