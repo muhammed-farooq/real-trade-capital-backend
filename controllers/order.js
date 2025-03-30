@@ -372,6 +372,7 @@ const placeOrder = async (req, res) => {
     if (!packageData) {
       return res.status(404).send({ errMsg: "Package not found" });
     }
+    const uniqueAccountName = await generateUniqueAccountName();
 
     // Check if an existing pending order exists
     let existingOrder = await Order.findOne({
@@ -391,6 +392,7 @@ const placeOrder = async (req, res) => {
 
       // Update the order status to pending again and other necessary fields
       existingOrder.orderStatus = "Pending";
+      existingOrder.accountName = uniqueAccountName;
       existingOrder.paymentMethod = payment;
       existingOrder.price = Number(configureAccount.price);
       existingOrder.platform = configureAccount.platform;
@@ -435,6 +437,7 @@ const placeOrder = async (req, res) => {
         name: `${billingDetails.firstName}${billingDetails.lastName}`,
         userId: user,
         package,
+        accountName: uniqueAccountName,
         privateKey,
         paymentAddress,
         price: Number(configureAccount.price),
@@ -475,7 +478,6 @@ const placeOrder = async (req, res) => {
       }),
     };
 
-    const uniqueAccountName = await generateUniqueAccountName();
     const accountData = {
       userId: user,
       name: `${billingDetails.firstName}${billingDetails.lastName}`,
@@ -517,25 +519,40 @@ const placeOrder = async (req, res) => {
 
 const getOrderLists = async (req, res) => {
   try {
-    const { filter, skip, path, role } = req.query;
-    console.log(skip, path, role);
-    let { id } = req.payload;
+    const { search, filter, skip, path, role } = req.query;
+    console.log("Query Params:", skip, path, role, search);
+    const { id } = req.payload;
     let orderList = [];
     let limit = 10;
-    if (path == "/profile" || path == "/dashboard") limit = 5;
 
-    if (role == "user") {
-    } else if (role == "admin") {
-      orderList = await Order.find({})
-        // .skip(parseInt(skip))
-        // .limit(limit)
+    if (path === "/profile" || path === "/dashboard") {
+      limit = 5;
+    }
+
+    // Build search query
+    const searchQuery = search
+      ? {
+          $or: [
+            { name: { $regex: search, $options: "i" } }, // Case-insensitive search for name
+            { accountName: { $regex: search, $options: "i" } }, // Case-insensitive search for accountName
+            !isNaN(parseFloat(search))
+              ? { amountSize: parseFloat(search) }
+              : null, // Exact match for number
+          ].filter(Boolean),
+        }
+      : {};
+
+    if (role === "admin") {
+      orderList = await Order.find(searchQuery)
+        .skip(parseInt(skip) || 0)
+        .limit(limit)
         .populate({
           path: "userId",
           select: "first_name last_name email phone",
         })
         .populate({
-          path: "coupon", // The field name in Order schema
-          select: "couponCode discountAmount expiryDate", // Specify fields from Coupon schema
+          path: "coupon",
+          select: "couponCode discountAmount expiryDate",
         })
         .sort({ orderCreatedAt: -1 });
     }
@@ -543,7 +560,7 @@ const getOrderLists = async (req, res) => {
     console.log("Order List:", orderList);
     res.status(200).json({ orderList });
   } catch (error) {
-    console.log("Error:", error);
+    console.error("Error:", error);
     res.status(504).json({ errMsg: "Gateway time-out" });
   }
 };

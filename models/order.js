@@ -5,6 +5,9 @@ const orderSchema = new mongoose.Schema(
     name: {
       type: String,
     },
+    accountName: {
+      type: String,
+    },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "users",
