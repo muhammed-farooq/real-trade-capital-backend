@@ -49,6 +49,7 @@ const orderSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String,
+      enum: ["Crypto", "Card", "USDT-BEP20", "USDT-TRC20", "USDT-ERC20"],
       required: true,
     },
     country: {
@@ -127,6 +128,9 @@ const orderSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+orderSchema.index({ userId: 1, createdAt: -1 });  
+orderSchema.index({ orderStatus: 1, txnStatus: 1, userId: 1, createdAt: -1 });
 
 const order = mongoose.model("order", orderSchema);
 module.exports = order;

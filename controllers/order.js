@@ -13,8 +13,34 @@ const {
   purchaseConfirmationAdmin,
 } = require("../assets/html/verification");
 const { orderApprove, orderCancelled } = require("../assets/html/order");
-
+const { nanoid } = require("nanoid");
+const onChainWallet = require("../models/chainWallet");
+const generateUniqueAccountName = () => `RTC-${nanoid(8).toUpperCase()}`;
 const resend = new Resend(process.env.RESEND_SECRET_KEY);
+
+const { Web3 } = require('web3');
+const { ethers } = require("ethers");
+const USDT_ADDRESS = "0x55d398326f99059ff775485246999027b3197955"; 
+const ANKR_API_KEY = process.env.ANKR_API_KEY; 
+const RPC_URL =  `https://rpc.ankr.com/bsc/${ANKR_API_KEY}`;
+const web3 = new Web3(RPC_URL);
+const usdtAbi = [
+    {
+        "constant": true,
+        "inputs": [{ "name": "_owner", "type": "address" }],
+        "name": "balanceOf",
+        "outputs": [{ "name": "balance", "type": "uint256" }],
+        "type": "function"
+    },
+    {
+        "constant": true,
+        "inputs": [],
+        "name": "decimals",
+        "outputs": [{ "name": "", "type": "uint8" }],
+        "type": "function"
+    }
+];
+const usdtContract = new web3.eth.Contract(usdtAbi, USDT_ADDRESS);
 
 // // Function to create a new TronWeb instance
 const createTronWebInstance = (privateKey) => {
@@ -22,52 +48,6 @@ const createTronWebInstance = (privateKey) => {
     fullHost: "https://api.trongrid.io",
     privateKey: privateKey,
   });
-};
-
-const fetchTotalUsersCount = async (req, res) => {
-  try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date();
-    tomorrow.setHours(23, 59, 59, 999);
-
-    const lastWeek = new Date();
-    lastWeek.setDate(lastWeek.getDate() - 7);
-
-    const lastMonth = new Date();
-    lastMonth.setMonth(lastMonth.getMonth() - 1);
-
-    // Define the find queries for different timeframes
-    const findQueries = {
-      daily: { createdAt: { $gte: today, $lte: tomorrow }, txnStatus },
-      weekly: { createdAt: { $gte: lastWeek } },
-      total: {},
-    };
-
-    // Define aggregation pipelines for counting documents
-    const aggregatePipeline = (query) => [
-      { $match: query },
-      { $group: { _id: null, count: { $sum: 1 } } },
-    ];
-
-    // Perform aggregation for daily, weekly, and total user count
-    const [dailyCount, weeklyCount, totalCount] = await Promise.all([
-      userModel.aggregate(aggregatePipeline(findQueries.daily)),
-      userModel.aggregate(aggregatePipeline(findQueries.weekly)),
-      userModel.aggregate(aggregatePipeline(findQueries.total)),
-    ]);
-
-    // Create the result object
-    const result = {
-      daily: dailyCount[0]?.count || 0,
-      weekly: weeklyCount[0]?.count || 0,
-      total: totalCount[0]?.count || 0,
-    };
-    res.status(200).json(result);
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ message: "Server side error!" });
-  }
 };
 
 const calculateTotalOrderAmounts = async (req, res) => {
@@ -132,22 +112,244 @@ const encryptPassword = (password) => {
   return CryptoJS.AES.encrypt(password, secretKey).toString();
 };
 
-const generateUniqueAccountName = async () => {
-  let uniqueName;
-  let isUnique = false;
-  while (!isUnique) {
-    uniqueName = `acc_${Math.random().toString(36).substr(2, 9)}`;
-    const existingAccount = await Account.findOne({ accountName: uniqueName });
-    if (!existingAccount) {
-      isUnique = true;
-    }
-  }
-  return uniqueName;
+// Generate TRON wallet function
+const generateTRONWallet = async() => {
+    const tronWeb  = createTronWebInstance(process.env.PRIVATE_KEY);
+    const wallet  = await tronWeb.createAccount();
+    return {
+        address: wallet.address.base58,
+        privateKey: wallet.privateKey
+    };
 };
+
+// Generate BSC wallet function
+const generateBSCWallet = async() => {
+    const wallet = ethers.Wallet.createRandom();
+    return {
+        address: wallet.address,
+        privateKey: wallet.privateKey
+    };
+};
+
+// ── WALLET RESOLVER ────────────────────────────────────────────────────────────
+// Single source of truth for fetching/creating a payment wallet.
+// Returns { address, privateKey } or throws on unsupported method.
+const resolveWallet = async (payment, userId) => {
+  if (payment === "USDT-TRC20") {
+    // Reuse an existing unused TRON wallet for this user if available
+    const existing = await onChainWallet
+      .findOne({ chain: "TRON", isUsed: false, userId })
+      .sort({ createdAt: -1 });
+
+    if (existing) {
+      await existing.save();
+      return { address: existing.address, privateKey: existing.privatetKey };
+    }
+
+    // Create a fresh TRON account
+    const account  = await generateTRONWallet();
+    await onChainWallet.create({
+      userId,
+      address:     account.address,
+      privatetKey: account.privateKey,
+      chain:       "TRON",
+    });
+    return { address: account.address, privateKey: account.privateKey };
+  }
+
+  if (payment === "USDT-BEP20") {
+    const existing = await onChainWallet
+      .findOne({ chain: "BSC", isUsed: false, userId })
+      .sort({ createdAt: -1 });
+
+    if (existing) {
+      await existing.save();
+      return { address: existing.address, privateKey: existing.privatetKey };
+    }
+
+    const account = await generateBSCWallet()
+    const address    = account.address;
+    const privateKey = account.privateKey;
+    await onChainWallet.create({
+      userId,
+      address,
+      privatetKey: privateKey,
+      chain:       "BSC",
+    });
+    return { address, privateKey };
+  }
+
+  throw new Error(`Unsupported payment method: ${payment}`);
+};
+
+// ── PLACE ORDER ────────────────────────────────────────────────────────────────
+const placeOrder = async (req, res) => {
+  try {
+    const { configureAccount, billingDetails, payment, user, package: packageId } = req.body;
+
+    // ── VALIDATION ────────────────────────────────────────────────────────────
+    const missing = [];
+    if (!configureAccount)        missing.push("configureAccount");
+    if (!billingDetails)          missing.push("billingDetails");
+    if (!payment)                 missing.push("payment");
+    if (!user)                    missing.push("user");
+    if (!packageId)               missing.push("package");
+    if (missing.length)
+      return res.status(400).json({ errMsg: `Missing fields: ${missing.join(", ")}` });
+
+    const { price, platform, accountType, accountSize, coupon, couponRedusedAmount } = configureAccount;
+    if (!price || !platform || !accountType || !accountSize)
+      return res.status(400).json({ errMsg: "Configuration account details are incomplete" });
+
+    const { firstName, lastName, phone, mail, street, city, postalCode, dateOfBirth, title, country } = billingDetails;
+    if (!firstName || !lastName || !phone || !mail || !street || !city || !postalCode || !dateOfBirth)
+      return res.status(400).json({ errMsg: "Billing details are incomplete" });
+
+    // ── LOOKUPS ───────────────────────────────────────────────────────────────
+    const [userData, packageData] = await Promise.all([
+      User.findById(user),
+      Package.findById(packageId),
+    ]);
+    if (!userData)    return res.status(404).json({ errMsg: "User not found" });
+    if (!packageData) return res.status(404).json({ errMsg: "Package not found" });
+
+    // ── UPDATE USER PROFILE (fill missing fields only) ────────────────────────
+    let userNeedsUpdate = false;
+    if (!userData.address?.street || !userData.address?.city || !userData.address?.postalCode) {
+      userData.address = { postalCode, country, city, street };
+      userNeedsUpdate = true;
+    }
+    if (!userData.dateOfBirth) { userData.dateOfBirth = dateOfBirth; userNeedsUpdate = true; }
+    if (!userData.phone)       { userData.phone = phone;             userNeedsUpdate = true; }
+    if (userNeedsUpdate) await userData.save();
+
+    // ── RESOLVE WALLET ────────────────────────────────────────────────────────
+    // Find any existing pending order for this user
+    const existingOrder = await Order.findOne({
+      userId: user,
+      orderStatus: "Pending",
+      txnStatus: "Pending",
+    });
+
+    let walletAddress, walletPrivateKey;
+
+    if (existingOrder && existingOrder.paymentMethod === payment) {
+      // Same payment method — reuse the existing wallet address
+      walletAddress    = existingOrder.paymentAddress;
+      walletPrivateKey = existingOrder.privateKey;
+    } else {
+      // Resolve (reuse or create) a wallet for the new method
+      const wallet     = await resolveWallet(payment, user);
+      walletAddress    = wallet.address;
+      walletPrivateKey = wallet.privateKey;
+    }
+
+    // ── SHARED BILLING SNAPSHOT ───────────────────────────────────────────────
+    const billingSnapshot = { title, postalCode, country, city, street, dateOfBirth };
+
+    // ── COUPON FIELDS ─────────────────────────────────────────────────────────
+    const couponFields = coupon
+      ? { isCouponApplied: true,  couponRedusedAmount: Number(couponRedusedAmount), coupon }
+      : { isCouponApplied: false, couponRedusedAmount: 0, coupon: null };
+
+    // ── UPSERT ORDER ──────────────────────────────────────────────────────────
+    const uniqueAccountName = generateUniqueAccountName();
+    let order;
+
+    if (existingOrder) {
+      Object.assign(existingOrder, {
+        orderStatus:    "Pending",
+        paymentMethod:  payment,
+        paymentAddress: walletAddress,
+        privateKey:     walletPrivateKey,
+        price:          Number(price),
+        platform,
+        amountSize:     accountSize,
+        step:           accountType,
+        createdAt:      new Date(),
+        orderCreatedAt: new Date(),
+        billingDetails: billingSnapshot,
+        ...couponFields,
+      });
+      await existingOrder.save();
+      order = existingOrder;
+    } else {
+      order = await Order.create({
+        name:           `${firstName}${lastName}`,
+        userId:         user,
+        package:        packageId,
+        accountName:    uniqueAccountName,
+        privateKey:     walletPrivateKey,
+        paymentAddress: walletAddress,
+        price:          Number(price),
+        platform,
+        step:           accountType,
+        amountSize:     accountSize,
+        paymentMethod:  payment,
+        country,
+        phone,
+        mail,
+        orderCancelledAt: new Date(),
+        billingDetails: billingSnapshot,
+        ...couponFields,
+      });
+    }
+
+    // ── UPSERT ACCOUNT ────────────────────────────────────────────────────────
+    const MinimumTrading = {
+      PhaseOne: packageData.evaluationStage.PhaseOne.MinimumTradingDays,
+      Funded:   packageData.fundedStage.MinimumTradingDays,
+      ...(packageData.evaluationStage.PhaseTwo && {
+        PhaseTwo: packageData.evaluationStage.PhaseTwo.MinimumTradingDays,
+      }),
+    };
+
+    const accountPayload = {
+      userId:        user,
+      name:          `${firstName}${lastName}`,
+      order:         order._id,
+      package:       packageId,
+      amountSize:    accountSize,
+      platform,
+      step:          accountType,
+      mail,
+      paymentMethod: payment,
+      MinimumTrading,
+      accountName:   order.accountName ?? uniqueAccountName,
+      createdAt:     new Date(),
+    };
+
+    const existingAccount = await Account.findOne({
+      status: "Pending",
+      order:  order._id,
+      userId: user,
+    });
+
+    if (existingAccount) {
+      Object.assign(existingAccount, accountPayload);
+      await existingAccount.save();
+    } else {
+      await Account.create(accountPayload);
+    }
+
+    return res.status(201).json({
+      orderId:        order._id,
+      paymentAddress: walletAddress,
+    });
+
+  } catch (error) {
+    console.error("[placeOrder]", error.message, error);
+    return res.status(500).json({ errMsg: "Internal server error" });
+  }
+};
+
+// const generateUniqueAccountName = () => {
+//   return `RTC-${nanoid(8).toUpperCase()}`;
+// };
 
 // const placeOrder = async (req, res) => {
 //   try {
-//     const { configureAccount, billingDetails, payment, user, package } =
+//     const { configureAccount, billingDetails, payment , user, package } =
 //       req.body;
 
 //     // Validate required fields
@@ -187,71 +389,238 @@ const generateUniqueAccountName = async () => {
 //     if (!payment) {
 //       return res.status(400).send({ errMsg: "Payment method is required" });
 //     }
+
 //     // Check if user exists
 //     const userData = await User.findById(user);
 //     if (!userData) {
 //       return res.status(404).send({ errMsg: "User not found" });
 //     }
-//     const packageData = await Package.findById({ _id: package });
+
+//     // Update user details if address or country is missing
+//     let updated = false;
+
+//     if (
+//       !userData.address ||
+//       !userData.address.street ||
+//       !userData.address.city ||
+//       !userData.address.postalCode
+//     ) {
+//       userData.address = {
+//         postalCode: billingDetails.postalCode,
+//         country: billingDetails.country,
+//         city: billingDetails.city,
+//         street: billingDetails.street,
+//       };
+//       updated = true;
+//     }
+
+//     if (!userData.dateOfBirth) {
+//       userData.dateOfBirth = billingDetails.dateOfBirth;
+//       updated = true;
+//     }
+
+//     if (!userData.phone) {
+//       userData.phone = billingDetails.phone;
+//       updated = true;
+//     }
+
+//     // If any fields were updated, save the changes to the user document
+//     if (updated) {
+//       await userData.save();
+//     }
+//     // Check if package exists
+//     const packageData = await Package.findById(package);
 //     if (!packageData) {
 //       return res.status(404).send({ errMsg: "Package not found" });
 //     }
-//     const tronWebInstance = createTronWebInstance(process.env.PRIVATE_KEY);
-//     const account = await tronWebInstance.createAccount(); // Create a new TRX account for this payment
-//     const paymentAddress = account.address.base58;
-//     const privateKey = account.privateKey;
-//     // const address =await
-//     // Update user details if necessary
-//     if (!userData.phone) userData.phone = billingDetails.phone;
-//     if (!userData.address) userData.address = {};
-//     if (!userData.address.street)
-//       userData.address.street = billingDetails.street;
-//     if (!userData.address.city) userData.address.city = billingDetails.city;
-//     if (!userData.address.postalCode)
-//       userData.address.postalCode = billingDetails.postalCode;
-//     if (!userData.address.country)
-//       userData.address.country = billingDetails.country;
-//     if (!userData.dateOfBirth)
-//       userData.dateOfBirth = billingDetails.dateOfBirth;
-//     await userData.save();
+//     const uniqueAccountName = await generateUniqueAccountName();
 
-//     // Fetch package details
-
-//     // Create a new order
-//     const newOrderData = {
-//       name: `${billingDetails.firstName} ${billingDetails.lastName}`,
+//     // Check if an existing pending order exists
+//     let existingOrder = await Order.findOne({
+//       orderStatus: "Pending",
+//       txnStatus: "Pending",
 //       userId: user,
-//       package,
-//       privateKey,
-//       paymentAddress,
-//       price: Number(configureAccount.price),
-//       platform: configureAccount.platform,
-//       step: configureAccount.accountType,
-//       amountSize: configureAccount.accountSize,
-//       paymentMethod: payment,
-//       country: billingDetails.country,
-//       phone: billingDetails.phone,
-//       mail: billingDetails.mail,
-//       isCouponApplied: !!configureAccount.coupon, // double exclamation marks to ensure it's a boolean
-//       couponRedusedAmount: Number(configureAccount.couponRedusedAmount), // can remain as is
-//       billingDetails: {
+//     });
+//     console.log(existingOrder, "existingOrder");
+
+//     let paymentAddress;
+//     let privateKey;
+
+//     if (existingOrder) {
+//       // If a pending order exists, reuse the existing order and update the necessary fields
+//       if(payment !== existingOrder.paymentMethod){
+//           await onChainWallet.updateOne({ address: existingOrder.paymentAddress }, { isUsed: false });
+//           if(payment=="USDT-TRC20"){
+//               const alreadyCreatedWallet = await onChainWallet.findOne({chain: "TRON", isUsed: false, userId: user }).sort({ createdAt: -1 });
+//               if (alreadyCreatedWallet) {
+//                 paymentAddress = alreadyCreatedWallet.address;
+//                 privateKey = alreadyCreatedWallet.privatetKey;
+//                 alreadyCreatedWallet.isUsed = true;
+//                 await alreadyCreatedWallet.save();
+//               } else {  
+//                 const tronWebInstance = createTronWebInstance(process.env.PRIVATE_KEY);
+//                 const account = await tronWebInstance.createAccount();
+//                 paymentAddress = account.address.base58;
+//                 privateKey = account.privateKey;
+//                 //--------------------------------------------------------
+//                 //Backup of pvtKey, not in use, just for reference
+//                 const newWalletGenerate = new onChainWallet({
+//                   userId: user,
+//                   address: paymentAddress,
+//                   privatetKey: privateKey,
+//                   chain : "TRON"
+//                 });
+//                 await newWalletGenerate.save();
+//                 //--------------------------------------------------------
+//               }
+//           } else if(payment=="USDT-BEP20"){
+//               const alreadyCreatedWallet = await onChainWallet.findOne({chain: "BEP20", isUsed: false, userId: user }).sort({ createdAt: -1 });
+//               if (alreadyCreatedWallet) {
+//                 paymentAddress = alreadyCreatedWallet.address;
+//                 privateKey = alreadyCreatedWallet.privatetKey;
+//                 alreadyCreatedWallet.isUsed = true;
+//                 await alreadyCreatedWallet.save();
+//               } else {
+//                 paymentAddress = "test-bep adress"
+//                 privateKey = "test pvt key bep" 
+//                 //--------------------------------------------------------
+//                 //Backup of pvtKey, not in use, just for reference
+//                 const newWalletGenerate = new onChainWallet({
+//                   userId: user,
+//                   address: paymentAddress,
+//                   privatetKey: privateKey,
+//                   chain : "BSC" 
+//                 });
+//                 await newWalletGenerate.save();
+//                 //--------------------------------------------------------
+//               }
+//           }
+//       }
+//       // paymentAddress = existingOrder.paymentAddress;
+//       // privateKey = existingOrder.privateKey;
+
+//       // Update the order status to pending again and other necessary fields
+//       existingOrder.orderStatus = "Pending";
+//       // existingOrder.accountName = uniqueAccountName;
+//       existingOrder.paymentMethod = payment;
+//       existingOrder.price = Number(configureAccount.price);
+//       existingOrder.platform = configureAccount.platform;
+//       existingOrder.amountSize = configureAccount.accountSize;
+//       existingOrder.step = configureAccount.accountType;
+//       existingOrder.createdAt = new Date();
+//       existingOrder.orderCreatedAt = new Date();
+//       // Update billing details
+//       existingOrder.billingDetails = {
 //         title: billingDetails.title,
 //         postalCode: billingDetails.postalCode,
 //         country: billingDetails.country,
 //         city: billingDetails.city,
 //         street: billingDetails.street,
 //         dateOfBirth: billingDetails.dateOfBirth,
-//       },
-//     };
+//       };
 
-//     // Conditionally add the coupon field if it exists
-//     if (configureAccount.coupon) {
-//       newOrderData.coupon = configureAccount.coupon;
+//       if (configureAccount.coupon) {
+//         // If the new order has a coupon, update the coupon details
+//         existingOrder.isCouponApplied = true;
+//         existingOrder.couponRedusedAmount = Number(
+//           configureAccount.couponRedusedAmount
+//         );
+//         existingOrder.coupon = configureAccount.coupon;
+//       } else {
+//         // If the new order does not have a coupon, remove the previous coupon details
+//         existingOrder.isCouponApplied = false;
+//         existingOrder.couponRedusedAmount = 0; // Set to 0 since no discount is applied
+//         existingOrder.coupon = null; // Remove the coupon information
+//       }
+
+//       await existingOrder.save();
+//     } else {
+//       // If no pending order, create a new TRX account and new order
+//       if(payment=="USDT-TRC20"){
+//           const alreadyCreatedWallet = await onChainWallet.findOne({chain: "TRON", isUsed: false, userId: user }).sort({ createdAt: -1 });
+//           if (alreadyCreatedWallet) {
+//             paymentAddress = alreadyCreatedWallet.address;
+//             privateKey = alreadyCreatedWallet.privatetKey;
+//             alreadyCreatedWallet.isUsed = true;
+//             await alreadyCreatedWallet.save();
+//           } else {
+//             const tronWebInstance = createTronWebInstance(process.env.PRIVATE_KEY);
+//             const account = await tronWebInstance.createAccount();
+//             paymentAddress = account.address.base58;
+//             privateKey = account.privateKey;
+//             //--------------------------------------------------------
+//             //Backup of pvtKey, not in use, just for reference
+//             const newWalletGenerate = new onChainWallet({
+//               userId: user,
+//               address: paymentAddress,
+//               privatetKey: privateKey,
+//               chain : "TRON" 
+//             });
+//             await newWalletGenerate.save();
+//             //--------------------------------------------------------
+//           }
+//       } else if(payment=="USDT-BEP20"){  
+//           const alreadyCreatedWallet = await onChainWallet.findOne({chain: "BEP20", isUsed: false, userId: user }).sort({ createdAt: -1 });
+//           if (alreadyCreatedWallet) {
+//             paymentAddress = alreadyCreatedWallet.address;
+//             privateKey = alreadyCreatedWallet.privatetKey;
+//             alreadyCreatedWallet.isUsed = true;
+//             await alreadyCreatedWallet.save();
+//           } else {
+//             paymentAddress = "test-bep adress"
+//             privateKey = "test pvt key bep" 
+//             //--------------------------------------------------------
+//             //Backup of pvtKey, not in use, just for reference
+//             const newWalletGenerate = new onChainWallet({
+//               userId: user,
+//               address: paymentAddress,
+//               privatetKey: privateKey,
+//               chain : "BSC" 
+//             });
+//             await newWalletGenerate.save();
+//             //--------------------------------------------------------
+//           }
+//       }
+      
+
+//       // Create a new order
+//       const newOrderData = {
+//         name: `${billingDetails.firstName}${billingDetails.lastName}`,
+//         userId: user,
+//         package,
+//         accountName: uniqueAccountName,
+//         privateKey,
+//         paymentAddress,
+//         price: Number(configureAccount.price),
+//         platform: configureAccount.platform,
+//         step: configureAccount.accountType,
+//         amountSize: configureAccount.accountSize,
+//         paymentMethod: payment,
+//         country: billingDetails.country,
+//         phone: billingDetails.phone,
+//         orderCancelledAt: new Date(),
+//         mail: billingDetails.mail,
+//         isCouponApplied: !!configureAccount.coupon,
+//         couponRedusedAmount: Number(configureAccount.couponRedusedAmount),
+//         billingDetails: {
+//           title: billingDetails.title,
+//           postalCode: billingDetails.postalCode,
+//           country: billingDetails.country,
+//           city: billingDetails.city,
+//           street: billingDetails.street,
+//           dateOfBirth: billingDetails.dateOfBirth,
+//         },
+//       };
+
+//       if (configureAccount.coupon) {
+//         newOrderData.coupon = configureAccount.coupon;
+//       }
+
+//       existingOrder = new Order(newOrderData);
+//       await existingOrder.save();
 //     }
-//     const newOrder = new Order(newOrderData);
-//     const savedOrder = await newOrder.save();
 
-//     // Create a new account
+//     // Create or update the account for this order
 //     const MinimumTrading = {
 //       PhaseOne: packageData.evaluationStage.PhaseOne.MinimumTradingDays,
 //       Funded: packageData.fundedStage.MinimumTradingDays,
@@ -259,11 +628,11 @@ const generateUniqueAccountName = async () => {
 //         PhaseTwo: packageData.evaluationStage.PhaseTwo.MinimumTradingDays,
 //       }),
 //     };
-//     const uniqueAccountName = await generateUniqueAccountName();
-//     const newAccount = new Account({
+
+//     const accountData = {
 //       userId: user,
-//       name: `${billingDetails.firstName} ${billingDetails.lastName}`,
-//       order: savedOrder._id,
+//       name: `${billingDetails.firstName}${billingDetails.lastName}`,
+//       order: existingOrder._id,
 //       package,
 //       amountSize: configureAccount.accountSize,
 //       platform: configureAccount.platform,
@@ -272,318 +641,30 @@ const generateUniqueAccountName = async () => {
 //       paymentMethod: payment,
 //       MinimumTrading,
 //       accountName: uniqueAccountName,
-//     });
-//     await newAccount.save();
+//       createdAt: new Date(), // Update createdAt to the current date/time
+//     };
+
+//     // Check if an account already exists for the order
+//     let existingAccount = await Account.findOne({ status: "Pending", order: existingOrder._id, userId: user });
+//     if (existingAccount) {
+//       // Update the existing account and the createdAt field
+//       Object.assign(existingAccount, accountData);
+//       existingAccount.createdAt = new Date(); // Update the createdAt field to the current time
+//       await existingAccount.save();
+//     } else {
+//       // Create a new account if none exists
+//       const newAccount = new Account(accountData);
+//       await newAccount.save();
+//     }
 
 //     res.status(201).send({
-//       msg: "Order placed successfully",
-//       orderId: newOrder._id,
+//       // info: "Once",
+//       orderId: existingOrder._id,
 //       paymentAddress,
 //     });
 //   } catch (error) {
-//     console.error(error.message);
+//     console.error(error.message, error);
 //     res.status(500).send({ errMsg: "Internal server error" });
-//   }
-// };
-
-const placeOrder = async (req, res) => {
-  try {
-    const { configureAccount, billingDetails, payment, user, package } =
-      req.body;
-
-    // Validate required fields
-    if (!configureAccount || !billingDetails || !payment || !user || !package) {
-      return res
-        .status(400)
-        .send({ errMsg: "All required fields must be provided" });
-    }
-
-    // Validate configureAccount fields
-    if (
-      !configureAccount.price ||
-      !configureAccount.platform ||
-      !configureAccount.accountType ||
-      !configureAccount.accountSize
-    ) {
-      return res
-        .status(400)
-        .send({ errMsg: "Configuration account details are incomplete" });
-    }
-
-    // Validate billingDetails fields
-    if (
-      !billingDetails.firstName ||
-      !billingDetails.lastName ||
-      !billingDetails.phone ||
-      !billingDetails.mail ||
-      !billingDetails.street ||
-      !billingDetails.city ||
-      !billingDetails.postalCode ||
-      !billingDetails.dateOfBirth
-    ) {
-      return res.status(400).send({ errMsg: "Billing details are incomplete" });
-    }
-
-    // Validate payment method
-    if (!payment) {
-      return res.status(400).send({ errMsg: "Payment method is required" });
-    }
-
-    // Check if user exists
-    const userData = await User.findById(user);
-    if (!userData) {
-      return res.status(404).send({ errMsg: "User not found" });
-    }
-
-    // Update user details if address or country is missing
-    let updated = false;
-
-    if (
-      !userData.address ||
-      !userData.address.street ||
-      !userData.address.city ||
-      !userData.address.postalCode
-    ) {
-      userData.address = {
-        postalCode: billingDetails.postalCode,
-        country: billingDetails.country,
-        city: billingDetails.city,
-        street: billingDetails.street,
-      };
-      updated = true;
-    }
-
-    if (!userData.dateOfBirth) {
-      userData.dateOfBirth = billingDetails.dateOfBirth;
-      updated = true;
-    }
-
-    if (!userData.phone) {
-      userData.phone = billingDetails.phone;
-      updated = true;
-    }
-
-    // If any fields were updated, save the changes to the user document
-    if (updated) {
-      await userData.save();
-    }
-    // Check if package exists
-    const packageData = await Package.findById(package);
-    if (!packageData) {
-      return res.status(404).send({ errMsg: "Package not found" });
-    }
-    const uniqueAccountName = await generateUniqueAccountName();
-
-    // Check if an existing pending order exists
-    let existingOrder = await Order.findOne({
-      userId: user,
-      txnStatus: "Pending",
-      orderStatus: "Pending",
-    });
-    console.log(existingOrder, "hahahahhh");
-
-    let paymentAddress;
-    let privateKey;
-
-    if (existingOrder) {
-      // If a pending order exists, reuse the existing order and update the necessary fields
-      paymentAddress = existingOrder.paymentAddress;
-      privateKey = existingOrder.privateKey;
-
-      // Update the order status to pending again and other necessary fields
-      existingOrder.orderStatus = "Pending";
-      existingOrder.accountName = uniqueAccountName;
-      existingOrder.paymentMethod = payment;
-      existingOrder.price = Number(configureAccount.price);
-      existingOrder.platform = configureAccount.platform;
-      existingOrder.amountSize = configureAccount.accountSize;
-      existingOrder.step = configureAccount.accountType;
-      existingOrder.createdAt = new Date();
-      existingOrder.orderCreatedAt = new Date();
-      // Update billing details
-      existingOrder.billingDetails = {
-        title: billingDetails.title,
-        postalCode: billingDetails.postalCode,
-        country: billingDetails.country,
-        city: billingDetails.city,
-        street: billingDetails.street,
-        dateOfBirth: billingDetails.dateOfBirth,
-      };
-
-      if (configureAccount.coupon) {
-        // If the new order has a coupon, update the coupon details
-        existingOrder.isCouponApplied = true;
-        existingOrder.couponRedusedAmount = Number(
-          configureAccount.couponRedusedAmount
-        );
-        existingOrder.coupon = configureAccount.coupon;
-      } else {
-        // If the new order does not have a coupon, remove the previous coupon details
-        existingOrder.isCouponApplied = false;
-        existingOrder.couponRedusedAmount = 0; // Set to 0 since no discount is applied
-        existingOrder.coupon = null; // Remove the coupon information
-      }
-
-      await existingOrder.save();
-    } else {
-      // If no pending order, create a new TRX account and new order
-      const tronWebInstance = createTronWebInstance(process.env.PRIVATE_KEY);
-      const account = await tronWebInstance.createAccount();
-      paymentAddress = account.address.base58;
-      privateKey = account.privateKey;
-
-      // Create a new order
-      const newOrderData = {
-        name: `${billingDetails.firstName}${billingDetails.lastName}`,
-        userId: user,
-        package,
-        accountName: uniqueAccountName,
-        privateKey,
-        paymentAddress,
-        price: Number(configureAccount.price),
-        platform: configureAccount.platform,
-        step: configureAccount.accountType,
-        amountSize: configureAccount.accountSize,
-        paymentMethod: payment,
-        country: billingDetails.country,
-        phone: billingDetails.phone,
-        orderCancelledAt: new Date(),
-        mail: billingDetails.mail,
-        isCouponApplied: !!configureAccount.coupon,
-        couponRedusedAmount: Number(configureAccount.couponRedusedAmount),
-        billingDetails: {
-          title: billingDetails.title,
-          postalCode: billingDetails.postalCode,
-          country: billingDetails.country,
-          city: billingDetails.city,
-          street: billingDetails.street,
-          dateOfBirth: billingDetails.dateOfBirth,
-        },
-      };
-
-      if (configureAccount.coupon) {
-        newOrderData.coupon = configureAccount.coupon;
-      }
-
-      existingOrder = new Order(newOrderData);
-      await existingOrder.save();
-    }
-
-    // Create or update the account for this order
-    const MinimumTrading = {
-      PhaseOne: packageData.evaluationStage.PhaseOne.MinimumTradingDays,
-      Funded: packageData.fundedStage.MinimumTradingDays,
-      ...(packageData.evaluationStage.PhaseTwo && {
-        PhaseTwo: packageData.evaluationStage.PhaseTwo.MinimumTradingDays,
-      }),
-    };
-
-    const accountData = {
-      userId: user,
-      name: `${billingDetails.firstName}${billingDetails.lastName}`,
-      order: existingOrder._id,
-      package,
-      amountSize: configureAccount.accountSize,
-      platform: configureAccount.platform,
-      step: configureAccount.accountType,
-      mail: billingDetails.mail,
-      paymentMethod: payment,
-      MinimumTrading,
-      accountName: uniqueAccountName,
-      createdAt: new Date(), // Update createdAt to the current date/time
-    };
-
-    // Check if an account already exists for the order
-    let existingAccount = await Account.findOne({ order: existingOrder._id });
-    if (existingAccount) {
-      // Update the existing account and the createdAt field
-      Object.assign(existingAccount, accountData);
-      existingAccount.createdAt = new Date(); // Update the createdAt field to the current time
-      await existingAccount.save();
-    } else {
-      // Create a new account if none exists
-      const newAccount = new Account(accountData);
-      await newAccount.save();
-    }
-
-    res.status(201).send({
-      // info: "Once",
-      orderId: existingOrder._id,
-      paymentAddress,
-    });
-  } catch (error) {
-    console.error(error.message, error);
-    res.status(500).send({ errMsg: "Internal server error" });
-  }
-};
-
-// const getOrderLists = async (req, res) => {
-//   try {
-//     const { search, filter, skip, path, role, startDate, endDate } = req.query;
-//     console.log("Query Params:", skip, path, role, search, startDate, endDate);
-//     const { id } = req.payload;
-//     let orderList = [];
-//     let limit = path === "/profile" || path === "/dashboard" ? 5 : 10;
-
-//     // Build search query
-//     const searchConditions = [];  
-
-//     // Handle spaces in search using regex
-//     const formattedSearch = search ? search.replace(/\s+/g, "\\s*") : "";
-
-//     // Text search on name and accountName
-//     if (formattedSearch) {
-//       searchConditions.push(
-//         { name: { $regex: formattedSearch, $options: "i" } },
-//         { accountName: { $regex: formattedSearch, $options: "i" } }
-//       );
-
-//       // Number search on amountSize
-//       const parsedAmount = parseFloat(search);
-//       if (!isNaN(parsedAmount)) {
-//         searchConditions.push({ amountSize: parsedAmount });
-//       }
-//     }
-
-//     // Date range filter on orderCreatedAt
-//     const dateFilter = {};
-//     if (startDate && !isNaN(new Date(startDate).getTime())) {
-//       dateFilter.$gte = new Date(startDate);
-//     }
-//     if (endDate && !isNaN(new Date(endDate).getTime())) {
-//       dateFilter.$lte = new Date(endDate);
-//     }
-
-//     // Combine queries using $and for date + search
-//     const finalQuery = {
-//       $and: [
-//         ...(searchConditions.length ? [{ $or: searchConditions }] : []),
-//         ...(Object.keys(dateFilter).length
-//           ? [{ orderCreatedAt: dateFilter }]
-//           : []),
-//       ],
-//     };
-
-//     if (role === "admin") {
-//       orderList = await Order.find(finalQuery)
-//         .skip(parseInt(skip) || 0)
-//         .limit(limit)
-//         .populate({
-//           path: "userId",
-//           select: "first_name last_name email phone",
-//         })
-//         .populate({
-//           path: "coupon",
-//           select: "couponCode discountAmount expiryDate",
-//         })
-//         .sort({ orderCreatedAt: -1 });
-//     }
-
-//     console.log("Order List:", orderList);
-//     res.status(200).json({ orderList });
-//   } catch (error) {
-//     console.error("Error:", error);
-//     res.status(504).json({ errMsg: "Gateway time-out" });
 //   }
 // };
 
@@ -686,21 +767,49 @@ const getOrderData = async (req, res) => {
     res.status(504).json({ errMsg: "Invalid Id Check the path" });
   }
 };
+
+const getUSDTBEPBalance = async (walletAddress) => {
+    try {
+        const balance = await usdtContract.methods.balanceOf(walletAddress).call();
+        return Number(balance) / 10 ** 18; 
+    } catch (error) {
+        console.error("Error fetching balance:", error);
+        return 0;
+    }
+};
+
 const checkAndTransferPayment = async (orderData) => {
-  const tronWebInstance = createTronWebInstance(orderData.privateKey);
-  const usdtContract = await initializeUsdtContract(tronWebInstance);
-
   try {
-    const usdtBalance = await usdtContract.methods
-      .balanceOf(orderData.paymentAddress)
-      .call();
-    const balanceInSun = usdtBalance.toString();
+    if(orderData.paymentMethod === "USDT-BEP20"){
+      const balance = await getUSDTBEPBalance(orderData.paymentAddress)
+      console.log('Balance BEP-20 :',balance);
+      if (balance >= orderData.price) {
+          await onChainWallet.updateOne(
+            { address: orderData.paymentAddress },
+            { isUsed: true }
+          );
+        return true;
+      }
+      else return false;
+    } else if(orderData.paymentMethod === "USDT-TRC20"){
+      const tronWebInstance = createTronWebInstance(orderData.privateKey);
+      const usdtContract = await initializeUsdtContract(tronWebInstance);
+      const usdtBalance = await usdtContract.methods
+        .balanceOf(orderData.paymentAddress)
+        .call();
+      const balanceInSun = usdtBalance.toString();
 
-    const balance = parseFloat(tronWebInstance.fromSun(balanceInSun));
-    console.log("balance :", balance);
-
-    if (balance >= orderData.price) return true;
-    else return false;
+      const balance = parseFloat(tronWebInstance.fromSun(balanceInSun));
+      console.log("Balance TRC-20:", balance);
+      if (balance >= orderData.price){
+          await onChainWallet.updateOne(
+            { address: orderData.paymentAddress },
+            { isUsed: true }
+          );
+        return true;
+      }
+      else return false;
+    }  
   } catch (error) {
     if (error.response) {
       console.error("Error response data:", error.response.data);
@@ -720,9 +829,8 @@ const paymentCheck = async (req, res) => {
     const { id } = req.params;
     if (id) {
       const orderData = await Order.findById(id);
-      // console.log(orderData);
       if (orderData && orderData.paymentAddress) {
-        const result = await checkAndTransferPayment(orderData);
+        const result = await checkAndTransferPayment(orderData);                            
         if (result) {
           orderData.txnStatus = "Completed";
           await orderData.save();

@@ -118,7 +118,6 @@ const accountSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
-      lowercase: true,
     },
     reasonForReject: {
       type: String,
@@ -152,6 +151,9 @@ const accountSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+accountSchema.index({ isPurchased: 1, userId: 1, createdAt: -1 });
+accountSchema.index({ status: 1, order: 1 ,userId: 1 });
 
 const Account = mongoose.model("account", accountSchema);
 module.exports = Account;

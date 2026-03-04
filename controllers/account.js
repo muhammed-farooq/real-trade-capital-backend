@@ -21,13 +21,6 @@ const getAccountLists = async (req, res) => {
   try {
     const userId = req.params.id;
     const accounts = await Account.find({ userId }).sort({ createdAt: -1 });
-
-    // if (!accounts.length) {
-    //   return res
-    //     .status(404)
-    //     .json({ msg: "No accounts found for this user." });
-    // }
-    // console.log(accounts);
     res.status(200).json({ allAccounts: accounts });
   } catch (error) {
     console.error("Error fetching account lists:", error);
