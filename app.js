@@ -6,6 +6,7 @@ const cors = require("cors");
 const app = express();
 const userRouter = require("./routes/userRoute");
 const adminRouter = require("./routes/adminRoute");
+// require('./cronjobs/cronjobs')
 
 const corsOptions = {
   origin: "*",
