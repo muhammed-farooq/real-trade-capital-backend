@@ -21,8 +21,14 @@ const TradingAccountSchema = new mongoose.Schema({
     index: true,
   },
 
+  account: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "account",
+    index: true,
+  },
+
   // ── Credentials (filled by user after payment, when connecting MT account) ──
-  loginId:    { type: String },   // MT4/MT5 login number
+  login:    { type: String },   // MT4/MT5 login number
   leverage: { type: Number },   // e.g. 100
   startingBalance: { type: Number, required: true }, // = accountSize from order
 

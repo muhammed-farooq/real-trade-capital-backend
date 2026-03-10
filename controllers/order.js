@@ -320,17 +320,17 @@ const placeOrder = async (req, res) => {
       createdAt:     new Date(),
     };
 
-    const existingAccount = await Account.findOne({
+    let account = await Account.findOne({
       status: "Pending",
       order:  order._id,
       userId: user,
     });
 
-    if (existingAccount) {
-      Object.assign(existingAccount, accountPayload);
-      await existingAccount.save();
+    if (account) {
+      Object.assign(account, accountPayload);
+      await account.save();
     } else {
-      await Account.create(accountPayload);
+      account = await Account.create(accountPayload);
     }
 
     // ── UPSERT TRADING ACCOUNT ────────────────────────────────────────────────
@@ -351,7 +351,8 @@ const placeOrder = async (req, res) => {
     };
 
     const tradingAccountPayload = {
-      userId:          user,
+      userId: user,
+      account : account._id,
       startingBalance: Number(accountSize),   // e.g. 25000
       challengeConfig,
       status:          "pending",             // no MT login yet — awaiting payment

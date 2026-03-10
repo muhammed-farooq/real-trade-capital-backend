@@ -35,6 +35,7 @@ const {
 } = require("../controllers/certificate");
 const { useCoupon } = require("../controllers/coupon");
 const { fetchCalendar } = require("../controllers/calendar");
+const {fetchTradingAcc} = require("../controllers/analytics/tradingAccDashboard")
 
 const userRouter = express.Router();
 
@@ -88,5 +89,8 @@ userRouter.post("/new-password" , newPassword);
 userRouter.post("/forgot-password", forgotPassword);
 
 userRouter.get("/calendar/:week", fetchCalendar);
+
+// ------------------------Dashoboard------------------------------>>
+userRouter.get("/trading-acc/:id", fetchTradingAcc)
 
 module.exports = userRouter;
