@@ -1,31 +1,44 @@
 // jobs/syncTradingAccounts.js
-const axios          = require("axios");
-const TradingAccount = require("../models/dashboard/tradingAcc");
-const MyFxSession    = require("../models/dashboard/myfxSession");
-const OpenTrade      = require("../models/dashboard/OpenTrade");
-const TradeHistory   = require("../models/dashboard/TradeHistory");
-const DailyGain      = require("../models/dashboard/DailyGain");
-const DataDaily      = require("../models/dashboard/DataDaily");
+const TradingAccount = require("../../models/dashboard/tradingAcc");
+const MyFxSession    = require("../../models/dashboard/myfxSession");
+const OpenTrade      = require("../../models/dashboard/OpenTrade");
+const TradeHistory   = require("../../models/dashboard/TradeHistory");
+const DailyGain      = require("../../models/dashboard/DailyGain");
+const DataDaily      = require("../../models/dashboard/DataDaily");
 
 const MFX_BASE = "https://www.myfxbook.com/api";
 
 const getSession = async () => {
   const doc = await MyFxSession.findOne({ email: process.env.MYFXBOOK_EMAIL }, { session: 1 });
-  return doc?.session ?? null;
+  if (!doc?.session) return null;
+  return decodeURIComponent(doc.session);
 };
 
-const mfxGet = async (endpoint, params) => {
-  const { data } = await axios.get(`${MFX_BASE}/${endpoint}`, { params });
-  if (data.error) throw new Error(`MyfxBook ${endpoint}: ${data.message}`);
-  return data;
-};
+const mfxGet = (endpoint, params) => new Promise((resolve, reject) => {
+  const https = require("https");
+  const { session, ...rest } = params;
+  const encodedSession = encodeURIComponent(session);
+  const extraParams = new URLSearchParams(rest).toString();
+  const url = `${MFX_BASE}/${endpoint}?session=${encodedSession}${extraParams ? "&" + extraParams : ""}`;
+
+  https.get(url, (res) => {
+    let raw = "";
+    res.on("data", (chunk) => raw += chunk);
+    res.on("end", () => {
+      try {
+        const data = JSON.parse(raw);
+        if (data.error) return reject(new Error(`MyfxBook ${endpoint}: ${data.message}`));
+        resolve(data);
+      } catch (e) {
+        reject(new Error(`MyfxBook ${endpoint}: failed to parse response`));
+      }
+    });
+  }).on("error", reject);
+});
 
 const today   = ()  => new Date().toISOString().split("T")[0];
 const daysAgo = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().split("T")[0]; };
 
-/* ─────────────────────────────────────────────
-   syncOne — syncs one TradingAccount document
-───────────────────────────────────────────── */
 const syncOne = async (account, session) => {
   const mfxId = account.myfxbookId;
   const accId = account._id;
@@ -41,6 +54,12 @@ const syncOne = async (account, session) => {
       mfxGet("get-daily-gain.json",   { session, id: mfxId, start, end }),
       mfxGet("get-data-daily.json",   { session, id: mfxId, start, end }),
     ]);
+
+  // ── log any unexpected failures (open-orders excluded — feature not always enabled)
+  [accRes, openRes, historyRes, gainRes, dailyRes].forEach((r, i) => {
+    const names = ["get-my-accounts","get-open-trades","get-history","get-daily-gain","get-data-daily"];
+    if (r.status === "rejected") console.error(`[syncOne] ${names[i]} FAILED:`, r.reason?.message ?? r.reason);
+  });
 
   // ── 1. Account stats ──────────────────────────────────────────────────────
   if (accRes.status === "fulfilled") {
@@ -63,7 +82,6 @@ const syncOne = async (account, session) => {
         lastUpdateDate: mfx.lastUpdateDate,
         creationDate:   mfx.creationDate,
         firstTradeDate: mfx.firstTradeDate,
-        tracking: mfx.tracking ?? 0,  views: mfx.views ?? 0,
       });
 
       // daily high balance
@@ -98,7 +116,7 @@ const syncOne = async (account, session) => {
     account.floatingPnl = trades.reduce((s, t) => s + parseFloat(t.profit ?? 0), 0);
   }
 
-  // ── 3. Open orders — delete all + re-insert ───────────────────────────────
+  // ── 3. Open orders — optional, some accounts don't have this feature enabled
   if (ordersRes.status === "fulfilled") {
     const orders = ordersRes.value.openOrders ?? [];
     await OpenTrade.deleteMany({ tradingAccount: accId, isPending: true });
@@ -114,6 +132,8 @@ const syncOne = async (account, session) => {
       })));
     }
   }
+  // get-open-orders returns "Invalid session" if the account doesn't have
+  // the Orders feature enabled on MyfxBook — this is expected, not an error.
 
   // ── 4. Trade history — upsert only, never delete ──────────────────────────
   if (historyRes.status === "fulfilled") {
@@ -152,7 +172,9 @@ const syncOne = async (account, session) => {
 
   // ── 5. Daily gain — upsert per date ──────────────────────────────────────
   if (gainRes.status === "fulfilled") {
-    const rows = gainRes.value.dailyGain ?? [];
+    // MyfxBook returns dailyGain as [[{...}],[{...}]] — same as dataDaily, unwrap each row
+    const rawGain = gainRes.value.dailyGain ?? [];
+    const rows = rawGain.map((r) => Array.isArray(r) ? r[0] : r).filter(Boolean);
     if (rows.length) {
       await DailyGain.bulkWrite(
         rows.map((d) => ({
@@ -174,7 +196,9 @@ const syncOne = async (account, session) => {
 
   // ── 6. Data daily (balance curve) — upsert per date ──────────────────────
   if (dailyRes.status === "fulfilled") {
-    const rows = dailyRes.value.dataDaily ?? [];
+    // MyfxBook returns dataDaily as [[{...}],[{...}]] — each row is wrapped in an array
+    const rawDaily = dailyRes.value.dataDaily ?? [];
+    const rows = rawDaily.map((r) => Array.isArray(r) ? r[0] : r).filter(Boolean);
     if (rows.length) {
       await DataDaily.bulkWrite(
         rows.map((d) => ({
@@ -183,10 +207,10 @@ const syncOne = async (account, session) => {
             update: { $set: {
               tradingAccount: accId,
               date:    d.date,
-              balance: parseFloat(d.balance    ?? 0),
-              profit:  parseFloat(d.profit     ?? 0),
-              pips:    parseFloat(d.pips       ?? 0),
-              lots:    parseFloat(d.lots       ?? 0),
+              balance: parseFloat(d.balance   ?? 0),
+              profit:  parseFloat(d.profit    ?? 0),
+              pips:    parseFloat(d.pips      ?? 0),
+              lots:    parseFloat(d.lots      ?? 0),
             }},
             upsert: true,
           },
@@ -203,13 +227,11 @@ const syncOne = async (account, session) => {
   await account.save();
 };
 
-/* ─────────────────────────────────────────────
-   syncAllAccounts — called by cron every 15 min
-───────────────────────────────────────────── */
 const syncAllAccounts = async () => {
   try {
-    const session = await getSession();
+    let session = await getSession();
     if (!session) { console.log("[sync] no session found"); return; }
+
 
     const accounts = await TradingAccount.find({
       status:     "active",

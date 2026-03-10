@@ -35,7 +35,7 @@ const {
 } = require("../controllers/certificate");
 const { useCoupon } = require("../controllers/coupon");
 const { fetchCalendar } = require("../controllers/calendar");
-const {fetchTradingAcc} = require("../controllers/analytics/tradingAccDashboard")
+const {fetchTradingAcc} = require("../controllers/analytics/dashboard")
 
 const userRouter = express.Router();
 

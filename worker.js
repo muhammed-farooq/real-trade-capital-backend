@@ -1,4 +1,5 @@
 const connectDB = require("./config/db");
 connectDB();
-require("./cronjobs/myfxBookSession")
 
+require("./jobs/syncDashData")
+require("./jobs/updateSession")
