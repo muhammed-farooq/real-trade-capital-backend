@@ -1110,7 +1110,7 @@ const ApproveOrder = async (req, res) => {
     const htmlContent = orderApprove(order.name);
 
     if(username){
-      await TradingAccount.findOneAndUpdate({userId: user._id, order: orderId },{login : username})
+      await TradingAccount.findOneAndUpdate({userId: user._id, order: orderId },{login : username, status : "active"})
     }
 
     try {
