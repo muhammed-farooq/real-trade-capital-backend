@@ -1,10 +1,10 @@
 // jobs/syncTradingAccounts.js
 const TradingAccount = require("../../models/dashboard/tradingAcc");
 const MyFxSession    = require("../../models/dashboard/myfxSession");
-const OpenTrade      = require("../../models/dashboard/OpenTrade");
-const TradeHistory   = require("../../models/dashboard/TradeHistory");
-const DailyGain      = require("../../models/dashboard/DailyGain");
-const DataDaily      = require("../../models/dashboard/DataDaily");
+const OpenTrade      = require("../../models/dashboard/openTrade");
+const TradeHistory   = require("../../models/dashboard/tradeHistory");
+const DailyGain      = require("../../models/dashboard/dailyGain");
+const DataDaily      = require("../../models/dashboard/dataDaily");
 
 const MFX_BASE = "https://www.myfxbook.com/api";
 

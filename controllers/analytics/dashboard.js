@@ -1,9 +1,9 @@
 // controllers/dashboard/dashboardController.js
 const TradingAccount = require("../../models/dashboard/tradingAcc");
-const OpenTrade      = require("../../models/dashboard/OpenTrade");
-const TradeHistory   = require("../../models/dashboard/TradeHistory");
-const DailyGain      = require("../../models/dashboard/DailyGain");
-const DataDaily      = require("../../models/dashboard/DataDaily");
+const OpenTrade      = require("../../models/dashboard/openTrade");
+const TradeHistory   = require("../../models/dashboard/tradeHistory");
+const DailyGain      = require("../../models/dashboard/dailyGain");
+const DataDaily      = require("../../models/dashboard/dataDaily");
 
 
 /* ─────────────────────────────────────────────────────────────────
