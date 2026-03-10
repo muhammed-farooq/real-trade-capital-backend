@@ -35,7 +35,13 @@ const {
 } = require("../controllers/certificate");
 const { useCoupon } = require("../controllers/coupon");
 const { fetchCalendar } = require("../controllers/calendar");
-const {fetchTradingAcc} = require("../controllers/analytics/dashboard")
+const {
+  fetchTradingAcc,
+  fetchDailyGain,
+  fetchDataDaily,
+  fetchTradeHistory,
+} = require("../controllers/analytics/dashboard");
+
 
 const userRouter = express.Router();
 
@@ -90,7 +96,10 @@ userRouter.post("/forgot-password", forgotPassword);
 
 userRouter.get("/calendar/:week", fetchCalendar);
 
-// ------------------------Dashoboard------------------------------>>
-userRouter.get("/trading-acc/:id", fetchTradingAcc)
+// ------------------------Dashboard------------------------------>>
+userRouter.get("/trading-acc/:id", fetchTradingAcc);
+userRouter.get("/dashboard/gain/:id",    fetchDailyGain);    // ?days=90
+userRouter.get("/dashboard/balance/:id", fetchDataDaily);    // ?days=90
+userRouter.get("/dashboard/history/:id", fetchTradeHistory); // ?page=1&limit=20
 
 module.exports = userRouter;
