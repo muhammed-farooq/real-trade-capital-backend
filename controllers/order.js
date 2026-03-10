@@ -17,6 +17,7 @@ const { nanoid } = require("nanoid");
 const onChainWallet = require("../models/chainWallet");
 const generateUniqueAccountName = () => `RTC-${nanoid(8).toUpperCase()}`;
 const resend = new Resend(process.env.RESEND_SECRET_KEY);
+const TradingAccount = require("../models/dashboard/tradingAcc")
 
 const { Web3 } = require('web3');
 const { ethers } = require("ethers");
@@ -182,18 +183,22 @@ const resolveWallet = async (payment, userId) => {
   throw new Error(`Unsupported payment method: ${payment}`);
 };
 
-// ── PLACE ORDER ────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// controllers/orderController.js  —  placeOrder (updated)
+// Only the UPSERT TRADING ACCOUNT block is new; everything else is unchanged.
+// ─────────────────────────────────────────────────────────────────────────────
+
 const placeOrder = async (req, res) => {
   try {
     const { configureAccount, billingDetails, payment, user, package: packageId } = req.body;
 
-    // ── VALIDATION ────────────────────────────────────────────────────────────
+    // ── VALIDATION ──────────────────────────────────────────────────────────
     const missing = [];
-    if (!configureAccount)        missing.push("configureAccount");
-    if (!billingDetails)          missing.push("billingDetails");
-    if (!payment)                 missing.push("payment");
-    if (!user)                    missing.push("user");
-    if (!packageId)               missing.push("package");
+    if (!configureAccount) missing.push("configureAccount");
+    if (!billingDetails)   missing.push("billingDetails");
+    if (!payment)          missing.push("payment");
+    if (!user)             missing.push("user");
+    if (!packageId)        missing.push("package");
     if (missing.length)
       return res.status(400).json({ errMsg: `Missing fields: ${missing.join(", ")}` });
 
@@ -205,7 +210,7 @@ const placeOrder = async (req, res) => {
     if (!firstName || !lastName || !phone || !mail || !street || !city || !postalCode || !dateOfBirth)
       return res.status(400).json({ errMsg: "Billing details are incomplete" });
 
-    // ── LOOKUPS ───────────────────────────────────────────────────────────────
+    // ── LOOKUPS ──────────────────────────────────────────────────────────────
     const [userData, packageData] = await Promise.all([
       User.findById(user),
       Package.findById(packageId),
@@ -213,7 +218,7 @@ const placeOrder = async (req, res) => {
     if (!userData)    return res.status(404).json({ errMsg: "User not found" });
     if (!packageData) return res.status(404).json({ errMsg: "Package not found" });
 
-    // ── UPDATE USER PROFILE (fill missing fields only) ────────────────────────
+    // ── UPDATE USER PROFILE ──────────────────────────────────────────────────
     let userNeedsUpdate = false;
     if (!userData.address?.street || !userData.address?.city || !userData.address?.postalCode) {
       userData.address = { postalCode, country, city, street };
@@ -224,7 +229,6 @@ const placeOrder = async (req, res) => {
     if (userNeedsUpdate) await userData.save();
 
     // ── RESOLVE WALLET ────────────────────────────────────────────────────────
-    // Find any existing pending order for this user
     const existingOrder = await Order.findOne({
       userId: user,
       orderStatus: "Pending",
@@ -232,13 +236,10 @@ const placeOrder = async (req, res) => {
     });
 
     let walletAddress, walletPrivateKey;
-
     if (existingOrder && existingOrder.paymentMethod === payment) {
-      // Same payment method — reuse the existing wallet address
       walletAddress    = existingOrder.paymentAddress;
       walletPrivateKey = existingOrder.privateKey;
     } else {
-      // Resolve (reuse or create) a wallet for the new method
       const wallet     = await resolveWallet(payment, user);
       walletAddress    = wallet.address;
       walletPrivateKey = wallet.privateKey;
@@ -295,7 +296,7 @@ const placeOrder = async (req, res) => {
       });
     }
 
-    // ── UPSERT ACCOUNT ────────────────────────────────────────────────────────
+    // ── UPSERT ACCOUNT (existing) ─────────────────────────────────────────────
     const MinimumTrading = {
       PhaseOne: packageData.evaluationStage.PhaseOne.MinimumTradingDays,
       Funded:   packageData.fundedStage.MinimumTradingDays,
@@ -331,6 +332,52 @@ const placeOrder = async (req, res) => {
     } else {
       await Account.create(accountPayload);
     }
+
+    // ── UPSERT TRADING ACCOUNT ────────────────────────────────────────────────
+    // Pull challenge config from the package's PhaseOne evaluation rules.
+    // Package stores all values as strings (e.g. "5%", "10") — strip % and parse.
+    const phaseConfig = packageData.evaluationStage.PhaseOne;
+    const toNum = (v, fallback) => {
+      const n = parseFloat(String(v ?? "").replace(/[^0-9.-]/g, ""));
+      return isNaN(n) ? fallback : n;
+    };
+
+    const challengeConfig = {
+      maxDailyLoss:   toNum(phaseConfig.MaximumDailyLoss,  5),   // stored as "5%" → 5
+      maxTotalLoss:   toNum(phaseConfig.MaximumLoss,       10),  // stored as "10%" → 10
+      profitTarget:   toNum(phaseConfig.ProfitTarget,      10),  // stored as "10%" → 10
+      minTradingDays: toNum(phaseConfig.MinimumTradingDays, 10), // stored as "10"  → 10
+      maxLotSize:     5,  // not in Package schema — keep default or add to schema
+    };
+
+    const tradingAccountPayload = {
+      userId:          user,
+      startingBalance: Number(accountSize),   // e.g. 25000
+      challengeConfig,
+      status:          "pending",             // no MT login yet — awaiting payment
+      // myfxbookId / myfxbookSession are NOT set here.
+      // They are set later when the user connects their MyfxBook account.
+    };
+
+    const existingTradingAccount = await TradingAccount.findOne({
+      userId: user,
+      order:  order._id,        // tie it to this specific order
+    });
+
+    if (existingTradingAccount) {
+      // Re-placing / updating the order — refresh config in case package changed
+      Object.assign(existingTradingAccount, {
+        ...tradingAccountPayload,
+        updatedAt: new Date(),
+      });
+      await existingTradingAccount.save();
+    } else {
+      await TradingAccount.create({
+        ...tradingAccountPayload,
+        order: order._id,       // keep a reference back to the order
+      });
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     return res.status(201).json({
       orderId:        order._id,
@@ -1009,7 +1056,6 @@ const ApproveOrder = async (req, res) => {
     order.orderStatus = "Completed";
 
     const user = await User.findById(account.userId);
-    console.log("dddddddddddddddddddddddddddddddddddddddd", user);
 
     if (user && !user.isPurchased) {
       user.isPurchased = true;
@@ -1061,6 +1107,11 @@ const ApproveOrder = async (req, res) => {
       )
     );
     const htmlContent = orderApprove(order.name);
+
+    if(username){
+      await TradingAccount.findOneAndUpdate({userId: user._id, order: orderId },{login : username})
+    }
+
     try {
       await resend.emails.send({
         from: process.env.WEBSITE_MAIL,

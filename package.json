@@ -5,7 +5,8 @@
   "license": "MIT",
   "type": "commonjs",
   "scripts": {
-    "dev": "nodemon app.js"
+    "dev": "nodemon app.js",
+    "worker": "nodemon worker.js"
   },
   "dependencies": {
     "@noble/secp256k1": "^1.7.1",
