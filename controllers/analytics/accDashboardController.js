@@ -220,4 +220,7 @@ const syncDashboard = async (req, res) => {
   }
 };
 
-module.exports = { getDashboard, syncDashboard };
+module.exports = { 
+  getDashboard, 
+  syncDashboard 
+};

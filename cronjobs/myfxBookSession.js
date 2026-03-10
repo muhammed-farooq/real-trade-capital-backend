@@ -6,4 +6,4 @@ cron.schedule('*/15 * * * *', async () => {
     await updateMyFxBookSession();
 });
 
-// updateMyFxBookSession()
+updateMyFxBookSession()

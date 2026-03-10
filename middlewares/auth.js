@@ -44,7 +44,7 @@ const verifyTokenAdmin = async (req, res, next) => {
 const verifyTokenUser = async (req, res, next) => {
   try {
     let token = req.headers["authorization"];
-    console.log(token,'token');
+    // console.log(token,'token');
 
     if (!token) {
       return res.status(403).json({ errMsg: "Access Denied", timeout: true });
@@ -53,7 +53,7 @@ const verifyTokenUser = async (req, res, next) => {
       token = token.slice(7, token.length).trimLeft();
     }
     const verified = jwt.verify(token, process.env.TOKEN_SECRET);
-    console.log(verified, "verified");
+    // console.log(verified, "verified");
 
     req.payload = verified;
     const user = await User.findById(req.payload.id);
