@@ -1,140 +1,10 @@
-// const dotenv = require("dotenv");
-// dotenv.config();
-
-// const axios = require("axios");
-// const TradingAccount = require("../../models/dashboard/tradingAcc");
-// const MyFxSession = require("../../models/dashboard/myfxSession");
-
-// const myFxbookEmail = process.env.MYFXBOOK_EMAIL;
-
-// const fetchMyFxBookAcc = async (login) => {
-//   try {
-//     const sessionDoc = await MyFxSession.findOne(
-//       { email: myFxbookEmail },
-//       { session: 1, _id: 0 }
-//     );
-
-//     if (!sessionDoc?.session) {
-//       console.log("[fetchMyFxBookAcc] session not found");
-//       return null;
-//     }
-
-//     const { data } = await axios.get(
-//       `https://www.myfxbook.com/api/get-my-accounts.json?session=${sessionDoc.session}`
-//     );
-
-//     if (data.error) {
-//       console.log("[fetchMyFxBookAcc] API error:", data.message || data.error);
-//       return null;
-//     }
-
-//     return data.accounts.find((a) => String(a.accountId) === String(login)) ?? null;
-//   } catch (err) {
-//     console.log("[fetchMyFxBookAcc] error:", err.message);
-//     return null;
-//   }
-// };
-
-// const syncMyfxbookData = async (tradingAccount, mfxAcc) => {
-//   try {
-//     tradingAccount.myfxbookId     = mfxAcc.id             ?? tradingAccount.myfxbookId;
-//     tradingAccount.name           = mfxAcc.name           ?? tradingAccount.name;
-//     tradingAccount.balance        = mfxAcc.balance        ?? 0;
-//     tradingAccount.equity         = mfxAcc.equity         ?? 0;
-//     tradingAccount.equityPercent  = mfxAcc.equityPercent  ?? 0;
-//     tradingAccount.profit         = mfxAcc.profit         ?? 0;
-//     tradingAccount.gain           = mfxAcc.gain           ?? 0;
-//     tradingAccount.absGain        = mfxAcc.absGain        ?? 0;
-//     tradingAccount.daily          = mfxAcc.daily          ?? 0;
-//     tradingAccount.monthly        = mfxAcc.monthly        ?? 0;
-//     tradingAccount.drawdown       = mfxAcc.drawdown       ?? 0;
-//     tradingAccount.deposits       = mfxAcc.deposits       ?? 0;
-//     tradingAccount.withdrawals    = mfxAcc.withdrawals    ?? 0;
-//     tradingAccount.interest       = mfxAcc.interest       ?? 0;
-//     tradingAccount.commission     = mfxAcc.commission     ?? 0;
-//     tradingAccount.currency       = mfxAcc.currency       ?? "USD";
-//     tradingAccount.profitFactor   = mfxAcc.profitFactor   ?? 0;
-//     tradingAccount.pips           = mfxAcc.pips           ?? 0;
-//     tradingAccount.demo           = mfxAcc.demo           ?? false;
-//     tradingAccount.server         = mfxAcc.server?.name   ?? tradingAccount.server;
-//     tradingAccount.lastUpdateDate = mfxAcc.lastUpdateDate ?? tradingAccount.lastUpdateDate;
-//     tradingAccount.creationDate   = mfxAcc.creationDate   ?? tradingAccount.creationDate;
-//     tradingAccount.firstTradeDate = mfxAcc.firstTradeDate ?? tradingAccount.firstTradeDate;
-
-//     // floatingPnl = equity - balance (open position PnL)
-//     tradingAccount.floatingPnl = (mfxAcc.equity ?? 0) - (mfxAcc.balance ?? 0);
-
-//     // dailyHighBalance — only update if today's balance is higher
-//     const today = new Date().toDateString();
-//     const lastDate = tradingAccount.dailyHighBalanceDate
-//       ? new Date(tradingAccount.dailyHighBalanceDate).toDateString()
-//       : null;
-
-//     if (lastDate !== today) {
-//       // New day — reset high to current balance
-//       tradingAccount.dailyHighBalance     = mfxAcc.balance ?? 0;
-//       tradingAccount.dailyHighBalanceDate = new Date();
-//     } else if ((mfxAcc.balance ?? 0) > (tradingAccount.dailyHighBalance ?? 0)) {
-//       tradingAccount.dailyHighBalance = mfxAcc.balance;
-//     }
-
-//     tradingAccount.status    = "active";
-//     tradingAccount.syncError = undefined;
-//     tradingAccount.lastSync  = new Date();
-
-//     await tradingAccount.save();
-//   } catch (err) {
-//     console.error("[syncMyfxbookData] save error:", err.message);
-//     tradingAccount.status    = "failed";
-//     tradingAccount.syncError = err.message;
-//     await tradingAccount.save().catch(() => {});
-//   }
-// };
-
-// const fetchTradingAcc = async (req, res) => {
-//   try {
-//     const { id } = req.params;
-
-//     const tradingAccount = await TradingAccount.findOne({ account: id });
-//     if (!tradingAccount) {
-//       return res.status(404).json({ success: false, message: "Trading account not found" });
-//     }
-
-//     if (!tradingAccount.login) {
-//       return res.status(200).json({
-//         success: true,
-//         data: tradingAccount,
-//         synced: false,
-//       });
-//     }
-
-//     const mfxAcc = await fetchMyFxBookAcc(tradingAccount.login);
-
-//     if (mfxAcc) {
-//       await syncMyfxbookData(tradingAccount, mfxAcc);
-//     } else {
-//       tradingAccount.lastSync = new Date();
-//       await tradingAccount.save().catch(() => {});
-//     }
-
-//     return res.status(200).json({
-//       success: true,
-//       data: tradingAccount,       
-//       synced: !!mfxAcc,
-//     });
-//   } catch (error) {
-//     console.error("[fetchTradingAcc] error:", error.message);
-//     return res.status(500).json({ success: false, message: error.message });
-//   }
-// };
-
-// module.exports = { fetchTradingAcc };
-
+// controllers/dashboard/dashboardController.js
 const TradingAccount = require("../../models/dashboard/tradingAcc");
 const OpenTrade      = require("../../models/dashboard/OpenTrade");
 const TradeHistory   = require("../../models/dashboard/TradeHistory");
 const DailyGain      = require("../../models/dashboard/DailyGain");
 const DataDaily      = require("../../models/dashboard/DataDaily");
+
 
 /* ─────────────────────────────────────────────────────────────────
    GET /trading-acc/:id
@@ -180,39 +50,59 @@ const fetchTradingAcc = async (req, res) => {
     ).size;
 
     const stats = {
-      totalTrades:  allClosed.length,
-      winTrades:    wins.length,
-      lossTrades:   losses.length,
-      winRate:      parseFloat(winRate.toFixed(2)),
-      avgWin:       parseFloat(avgWin.toFixed(2)),
-      avgLoss:      parseFloat(avgLoss.toFixed(2)),
-      bestTrade:    parseFloat(bestTrade.toFixed(2)),
-      worstTrade:   parseFloat(worstTrade.toFixed(2)),
-      profitFactor: tradingAccount.profitFactor ?? 0,
+      totalTrades:    allClosed.length,
+      winTrades:      wins.length,
+      lossTrades:     losses.length,
+      winRate:        parseFloat(winRate.toFixed(2)),
+      avgWin:         parseFloat(avgWin.toFixed(2)),
+      avgLoss:        parseFloat(avgLoss.toFixed(2)),
+      bestTrade:      parseFloat(bestTrade.toFixed(2)),
+      worstTrade:     parseFloat(worstTrade.toFixed(2)),
+      profitFactor:   tradingAccount.profitFactor ?? 0,
       tradingDays,
+      minTradingDays: tradingAccount.challengeConfig?.minTradingDays ?? 10,
     };
 
     // ── Compute challenge rule status ─────────────────────────────────────────
-    const cfg = tradingAccount.challengeConfig ?? {};
-    const startBal = tradingAccount.startingBalance ?? 0;
-    const balance  = tradingAccount.balance ?? 0;
+    const cfg       = tradingAccount.challengeConfig ?? {};
+    const startBal  = tradingAccount.startingBalance ?? 0;
+    const balance   = tradingAccount.balance ?? 0;
     const dailyHigh = tradingAccount.dailyHighBalance ?? balance;
 
-    const currentDailyLoss  = dailyHigh > 0 ? ((balance - dailyHigh) / startBal) * 100 : 0;
-    const currentTotalLoss  = startBal  > 0 ? ((balance - startBal)  / startBal) * 100 : 0;
-    const currentProfit     = startBal  > 0 ? ((balance - startBal)  / startBal) * 100 : 0;
-    const currentMaxLot     = openTrades.length ? Math.max(...openTrades.map((t) => t.lots ?? 0)) : 0;
+    // Daily loss: how much balance dropped from today's high, as % of startingBalance
+    // Negative means loss. Only relevant if balance < dailyHigh.
+    const currentDailyLoss = startBal > 0
+      ? parseFloat((((balance - dailyHigh) / startBal) * 100).toFixed(2))
+      : 0;
+
+    // Total drawdown: how much below starting balance, as % of startingBalance
+    // Only negative values matter — if balance > startBal, drawdown = 0
+    const currentTotalDrawdown = startBal > 0
+      ? parseFloat((Math.min(0, (balance - startBal) / startBal * 100)).toFixed(2))
+      : 0;
+
+    // Current profit: how much above starting balance (always positive or 0 for rules display)
+    const currentProfit = startBal > 0
+      ? parseFloat(((balance - startBal) / startBal * 100).toFixed(2))
+      : 0;
+
+    const currentMaxLot = openTrades.length
+      ? Math.max(...openTrades.map((t) => t.lots ?? 0))
+      : 0;
 
     const rules = {
-      currentDailyLoss:    parseFloat(currentDailyLoss.toFixed(2)),
+      // Daily drawdown — currentDailyLoss is 0 or negative
+      currentDailyLoss:    currentDailyLoss,
       maxDailyLoss:        cfg.maxDailyLoss   ?? 5,
       dailyLossPassed:     Math.abs(currentDailyLoss) <= (cfg.maxDailyLoss ?? 5),
 
-      currentTotalLoss:    parseFloat(currentTotalLoss.toFixed(2)),
+      // Total drawdown — currentTotalDrawdown is 0 or negative
+      currentTotalLoss:    currentTotalDrawdown,
       maxTotalLoss:        cfg.maxTotalLoss   ?? 10,
-      totalLossPassed:     Math.abs(currentTotalLoss) <= (cfg.maxTotalLoss ?? 10),
+      totalLossPassed:     Math.abs(currentTotalDrawdown) <= (cfg.maxTotalLoss ?? 10),
 
-      currentProfit:       parseFloat(currentProfit.toFixed(2)),
+      // Profit target — currentProfit is positive
+      currentProfit:       currentProfit,
       profitTarget:        cfg.profitTarget   ?? 10,
       profitTargetPassed:  currentProfit >= (cfg.profitTarget ?? 10),
 
@@ -245,9 +135,9 @@ const fetchTradingAcc = async (req, res) => {
       withdrawals:      tradingAccount.withdrawals,
       interest:         tradingAccount.interest,
       commission:       tradingAccount.commission,
-      dailyHighBalance: tradingAccount.dailyHighBalance,
+      dailyHighBalance:  tradingAccount.dailyHighBalance,
       dailyDrawdownUsed: parseFloat(Math.abs(currentDailyLoss).toFixed(2)),
-      maxDrawdownUsed:   parseFloat(Math.abs(currentTotalLoss).toFixed(2)),
+      maxDrawdownUsed:   parseFloat(Math.abs(currentTotalDrawdown).toFixed(2)),
       demo:             tradingAccount.demo,
       status:           tradingAccount.status,
       lastSync:         tradingAccount.lastSync,
@@ -289,7 +179,7 @@ const fetchDailyGain = async (req, res) => {
     }
 
     const rows = await DailyGain.find({ tradingAccount: tradingAccount._id })
-      .sort({ date: -1 })
+      .sort({ _id: -1 })   // insertion order = chronological since we upsert by date
       .limit(days)
       .lean();
 
@@ -319,7 +209,7 @@ const fetchDataDaily = async (req, res) => {
     }
 
     const rows = await DataDaily.find({ tradingAccount: tradingAccount._id })
-      .sort({ date: -1 })
+      .sort({ _id: -1 })
       .limit(days)
       .lean();
 
