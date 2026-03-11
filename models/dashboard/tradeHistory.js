@@ -27,4 +27,7 @@ TradeHistorySchema.index(
   { unique: true }
 );
 
+// Paginated history fetch — sort by closeTime desc
+TradeHistorySchema.index({ tradingAccount: 1, closeTime: -1 });
+
 module.exports = mongoose.model("TradeHistory", TradeHistorySchema);

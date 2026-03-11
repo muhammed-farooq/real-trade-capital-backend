@@ -19,4 +19,7 @@ const OpenTradeSchema = new mongoose.Schema({
   isPending: { type: Boolean, default: false },  // true = open order (limit/stop), false = live trade
 }, { timestamps: false, versionKey: false });
 
-module.exports = mongoose.model("openTrade", OpenTradeSchema);
+// find + deleteMany by tradingAccount + isPending — runs every sync + every API call
+OpenTradeSchema.index({ tradingAccount: 1, isPending: 1 });
+
+module.exports = mongoose.model("OpenTrade", OpenTradeSchema);

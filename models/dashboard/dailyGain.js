@@ -13,4 +13,7 @@ const DailyGainSchema = new mongoose.Schema({
 // One entry per account per day
 DailyGainSchema.index({ tradingAccount: 1, date: 1 }, { unique: true });
 
+// Chart fetch — sort by _id desc + limit (covered by the unique index above)
+// No extra index needed — { tradingAccount, date } unique index handles all queries
+
 module.exports = mongoose.model("DailyGain", DailyGainSchema);

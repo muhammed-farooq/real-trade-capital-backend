@@ -40,14 +40,38 @@ const today   = ()  => new Date().toISOString().split("T")[0];
 const daysAgo = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().split("T")[0]; };
 
 const syncOne = async (account, session) => {
-  const mfxId = account.myfxbookId;
   const accId = account._id;
   const start = daysAgo(365);
   const end   = today();
 
-  const [accRes, openRes, ordersRes, historyRes, gainRes, dailyRes] =
+  // ── Resolve myfxbookId from login if not yet set ──────────────────────────
+  // get-my-accounts is always fetched first to find/confirm the account
+  let mfxId = account.myfxbookId;
+
+  const accRes = await mfxGet("get-my-accounts.json", { session })
+    .then(data => ({ status: "fulfilled", value: data }))
+    .catch(err => ({ status: "rejected", reason: err }));
+
+  if (accRes.status === "fulfilled") {
+    const mfx = accRes.value.accounts?.find(
+      (a) => String(a.accountId) === String(account.login)
+    );
+    if (mfx && !mfxId) {
+      // First time — save myfxbookId so future syncs can use it directly
+      account.myfxbookId = mfx.id;
+      mfxId = mfx.id;
+      console.log(`[syncOne] resolved myfxbookId=${mfxId} for login=${account.login}`);
+    }
+  }
+
+  if (!mfxId) {
+    console.error(`[syncOne] cannot sync — myfxbookId not found for login=${account.login}`);
+    return;
+  }
+
+  // ── Fetch remaining endpoints in parallel ─────────────────────────────────
+  const [openRes, ordersRes, historyRes, gainRes, dailyRes] =
     await Promise.allSettled([
-      mfxGet("get-my-accounts.json",  { session }),
       mfxGet("get-open-trades.json",  { session, id: mfxId }),
       mfxGet("get-open-orders.json",  { session, id: mfxId }),
       mfxGet("get-history.json",      { session, id: mfxId }),
@@ -55,16 +79,16 @@ const syncOne = async (account, session) => {
       mfxGet("get-data-daily.json",   { session, id: mfxId, start, end }),
     ]);
 
-  // ── log any unexpected failures (open-orders excluded — feature not always enabled)
-  [accRes, openRes, historyRes, gainRes, dailyRes].forEach((r, i) => {
-    const names = ["get-my-accounts","get-open-trades","get-history","get-daily-gain","get-data-daily"];
+  // log unexpected failures (open-orders excluded — not always enabled)
+  [openRes, historyRes, gainRes, dailyRes].forEach((r, i) => {
+    const names = ["get-open-trades","get-history","get-daily-gain","get-data-daily"];
     if (r.status === "rejected") console.error(`[syncOne] ${names[i]} FAILED:`, r.reason?.message ?? r.reason);
   });
 
   // ── 1. Account stats ──────────────────────────────────────────────────────
   if (accRes.status === "fulfilled") {
     const mfx = accRes.value.accounts?.find(
-      (a) => String(a.id) === String(mfxId) || String(a.accountId) === String(account.login)
+      (a) => String(a.accountId) === String(account.login)
     );
     if (mfx) {
       Object.assign(account, {
@@ -82,6 +106,7 @@ const syncOne = async (account, session) => {
         lastUpdateDate: mfx.lastUpdateDate,
         creationDate:   mfx.creationDate,
         firstTradeDate: mfx.firstTradeDate,
+        tracking: mfx.tracking ?? 0,  views: mfx.views ?? 0,
       });
 
       // daily high balance
@@ -234,8 +259,8 @@ const syncAllAccounts = async () => {
 
 
     const accounts = await TradingAccount.find({
-      status:     "active",
-      myfxbookId: { $exists: true, $ne: null },
+      status: { $in: ["active", "pending"] },
+      login:  { $exists: true, $ne: null },   // has MT login = ready to sync
     });
 
     if (!accounts.length) { console.log("[sync] no active accounts"); return; }
