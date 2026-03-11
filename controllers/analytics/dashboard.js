@@ -35,14 +35,14 @@ const fetchTradingAcc = async (req, res) => {
     ]);
 
     // ── Compute stats from trade history ─────────────────────────────────────
-    const allClosed   = await TradeHistory.find({ tradingAccount: tradingAccount._id }).lean();
-    const wins        = allClosed.filter((t) => t.profit > 0);
-    const losses      = allClosed.filter((t) => t.profit < 0);
-    const winRate     = allClosed.length ? (wins.length / allClosed.length) * 100 : 0;
-    const avgWin      = wins.length   ? wins.reduce((s, t) => s + t.profit, 0)   / wins.length   : 0;
-    const avgLoss     = losses.length ? losses.reduce((s, t) => s + t.profit, 0) / losses.length : 0;
-    const bestTrade   = allClosed.length ? Math.max(...allClosed.map((t) => t.profit)) : 0;
-    const worstTrade  = allClosed.length ? Math.min(...allClosed.map((t) => t.profit)) : 0;
+    const allClosed  = await TradeHistory.find({ tradingAccount: tradingAccount._id }).lean();
+    const wins       = allClosed.filter((t) => t.profit > 0);
+    const losses     = allClosed.filter((t) => t.profit < 0);
+    const winRate    = allClosed.length ? (wins.length / allClosed.length) * 100 : 0;
+    const avgWin     = wins.length   ? wins.reduce((s, t) => s + t.profit, 0)   / wins.length   : 0;
+    const avgLoss    = losses.length ? losses.reduce((s, t) => s + t.profit, 0) / losses.length : 0;
+    const bestTrade  = allClosed.length ? Math.max(...allClosed.map((t) => t.profit)) : 0;
+    const worstTrade = allClosed.length ? Math.min(...allClosed.map((t) => t.profit)) : 0;
 
     // Unique trading days = unique dates from closeTimes
     const tradingDays = new Set(
@@ -69,80 +69,80 @@ const fetchTradingAcc = async (req, res) => {
     const balance   = tradingAccount.balance ?? 0;
     const dailyHigh = tradingAccount.dailyHighBalance ?? balance;
 
+    // Only compute percentages when balance is live — balance=0 means not synced yet
+    const hasLiveData = balance > 0;
+
     // Daily loss: how much balance dropped from today's high, as % of startingBalance
-    // Negative means loss. Only relevant if balance < dailyHigh.
-    const currentDailyLoss = startBal > 0
+    const currentDailyLoss = hasLiveData && startBal > 0
       ? parseFloat((((balance - dailyHigh) / startBal) * 100).toFixed(2))
       : 0;
 
-    // Total drawdown: how much below starting balance, as % of startingBalance
-    // Only negative values matter — if balance > startBal, drawdown = 0
-    const currentTotalDrawdown = startBal > 0
+    // Total drawdown: 0 or negative only — never positive
+    const currentTotalDrawdown = hasLiveData && startBal > 0
       ? parseFloat((Math.min(0, (balance - startBal) / startBal * 100)).toFixed(2))
       : 0;
 
-    // Current profit: how much above starting balance (always positive or 0 for rules display)
-    const currentProfit = startBal > 0
+    // Current profit: positive only — 0 if no live data or in loss
+    const currentProfit = hasLiveData && startBal > 0
       ? parseFloat(((balance - startBal) / startBal * 100).toFixed(2))
       : 0;
 
-    const currentMaxLot = openTrades.length
-      ? Math.max(...openTrades.map((t) => t.lots ?? 0))
-      : 0;
+    // Max lot: highest across ALL closed history + current open trades
+    // Persists across days — if 4 lots used on day 1, stays 4 on day 3
+    const historyLots   = allClosed.length  ? Math.max(...allClosed.map((t) => t.lots ?? 0))  : 0;
+    const openLots      = openTrades.length ? Math.max(...openTrades.map((t) => t.lots ?? 0)) : 0;
+    const currentMaxLot = Math.max(historyLots, openLots);
 
     const rules = {
-      // Daily drawdown — currentDailyLoss is 0 or negative
-      currentDailyLoss:    currentDailyLoss,
-      maxDailyLoss:        cfg.maxDailyLoss   ?? 5,
-      dailyLossPassed:     Math.abs(currentDailyLoss) <= (cfg.maxDailyLoss ?? 5),
+      currentDailyLoss:   currentDailyLoss,
+      maxDailyLoss:       cfg.maxDailyLoss  ?? 5,
+      dailyLossPassed:    Math.abs(currentDailyLoss) <= (cfg.maxDailyLoss ?? 5),
 
-      // Total drawdown — currentTotalDrawdown is 0 or negative
-      currentTotalLoss:    currentTotalDrawdown,
-      maxTotalLoss:        cfg.maxTotalLoss   ?? 10,
-      totalLossPassed:     Math.abs(currentTotalDrawdown) <= (cfg.maxTotalLoss ?? 10),
+      currentTotalLoss:   currentTotalDrawdown,
+      maxTotalLoss:       cfg.maxTotalLoss  ?? 10,
+      totalLossPassed:    Math.abs(currentTotalDrawdown) <= (cfg.maxTotalLoss ?? 10),
 
-      // Profit target — currentProfit is positive
-      currentProfit:       currentProfit,
-      profitTarget:        cfg.profitTarget   ?? 10,
-      profitTargetPassed:  currentProfit >= (cfg.profitTarget ?? 10),
+      currentProfit:      currentProfit,
+      profitTarget:       cfg.profitTarget  ?? 10,
+      profitTargetPassed: currentProfit >= (cfg.profitTarget ?? 10),
 
-      currentTradingDays:  tradingDays,
-      minTradingDays:      cfg.minTradingDays ?? 10,
-      tradingDaysPassed:   tradingDays >= (cfg.minTradingDays ?? 10),
+      currentTradingDays: tradingDays,
+      minTradingDays:     cfg.minTradingDays ?? 10,
+      tradingDaysPassed:  tradingDays >= (cfg.minTradingDays ?? 10),
 
-      currentMaxLot:       parseFloat(currentMaxLot.toFixed(2)),
-      maxLotSize:          cfg.maxLotSize     ?? 5,
-      lotSizePassed:       currentMaxLot <= (cfg.maxLotSize ?? 5),
+      currentMaxLot:      parseFloat(currentMaxLot.toFixed(2)),
+      maxLotSize:         cfg.maxLotSize    ?? 5,
+      lotSizePassed:      currentMaxLot <= (cfg.maxLotSize ?? 5),
     };
 
     // ── Account summary ───────────────────────────────────────────────────────
     const account = {
-      login:            tradingAccount.login,
-      server:           tradingAccount.server,
-      leverage:         tradingAccount.leverage,
-      currency:         tradingAccount.currency,
-      balance:          tradingAccount.balance,
-      equity:           tradingAccount.equity,
-      startingBalance:  tradingAccount.startingBalance,
-      floatingPnl:      tradingAccount.floatingPnl,
-      daily:            tradingAccount.daily,
-      monthly:          tradingAccount.monthly,
-      gain:             tradingAccount.gain,
-      absGain:          tradingAccount.absGain,
-      drawdown:         tradingAccount.drawdown,
-      profit:           tradingAccount.profit,
-      deposits:         tradingAccount.deposits,
-      withdrawals:      tradingAccount.withdrawals,
-      interest:         tradingAccount.interest,
-      commission:       tradingAccount.commission,
+      login:             tradingAccount.login,
+      server:            tradingAccount.server,
+      leverage:          tradingAccount.leverage,
+      currency:          tradingAccount.currency,
+      balance:           tradingAccount.balance,
+      equity:            tradingAccount.equity,
+      startingBalance:   tradingAccount.startingBalance,
+      floatingPnl:       tradingAccount.floatingPnl,
+      daily:             tradingAccount.daily,
+      monthly:           tradingAccount.monthly,
+      gain:              tradingAccount.gain,
+      absGain:           tradingAccount.absGain,
+      drawdown:          tradingAccount.drawdown,
+      profit:            tradingAccount.profit,
+      deposits:          tradingAccount.deposits,
+      withdrawals:       tradingAccount.withdrawals,
+      interest:          tradingAccount.interest,
+      commission:        tradingAccount.commission,
       dailyHighBalance:  tradingAccount.dailyHighBalance,
       dailyDrawdownUsed: parseFloat(Math.abs(currentDailyLoss).toFixed(2)),
       maxDrawdownUsed:   parseFloat(Math.abs(currentTotalDrawdown).toFixed(2)),
-      demo:             tradingAccount.demo,
-      status:           tradingAccount.status,
-      lastSync:         tradingAccount.lastSync,
-      firstTradeDate:   tradingAccount.firstTradeDate,
-      creationDate:     tradingAccount.creationDate,
+      demo:              tradingAccount.demo,
+      status:            tradingAccount.status,
+      lastSync:          tradingAccount.lastSync,
+      firstTradeDate:    tradingAccount.firstTradeDate,
+      creationDate:      tradingAccount.creationDate,
     };
 
     return res.status(200).json({
@@ -153,8 +153,8 @@ const fetchTradingAcc = async (req, res) => {
         rules,
         openTrades,
         openOrders,
-        closedTrades,   // last 50
-        tradeHistory: closedTrades, // same — alias for frontend compatibility
+        closedTrades,
+        tradeHistory: closedTrades,
       },
     });
   } catch (error) {
@@ -170,8 +170,8 @@ const fetchTradingAcc = async (req, res) => {
 ───────────────────────────────────────────────────────────────── */
 const fetchDailyGain = async (req, res) => {
   try {
-    const { id }   = req.params;
-    const days     = parseInt(req.query.days) || 90;
+    const { id } = req.params;
+    const days   = parseInt(req.query.days) || 90;
 
     const tradingAccount = await TradingAccount.findOne({ account: id }, { _id: 1 });
     if (!tradingAccount) {
@@ -179,13 +179,13 @@ const fetchDailyGain = async (req, res) => {
     }
 
     const rows = await DailyGain.find({ tradingAccount: tradingAccount._id })
-      .sort({ _id: -1 })   // insertion order = chronological since we upsert by date
+      .sort({ _id: -1 })
       .limit(days)
       .lean();
 
     return res.status(200).json({
       success: true,
-      result: rows.reverse(), // oldest first for charts
+      result: rows.reverse(),
     });
   } catch (error) {
     console.error("[fetchDailyGain] error:", error.message);
@@ -215,7 +215,7 @@ const fetchDataDaily = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      result: rows.reverse(), // oldest first for charts
+      result: rows.reverse(),
     });
   } catch (error) {
     console.error("[fetchDataDaily] error:", error.message);
@@ -230,10 +230,10 @@ const fetchDataDaily = async (req, res) => {
 ───────────────────────────────────────────────────────────────── */
 const fetchTradeHistory = async (req, res) => {
   try {
-    const { id }    = req.params;
-    const page      = parseInt(req.query.page)  || 1;
-    const limit     = parseInt(req.query.limit) || 20;
-    const skip      = (page - 1) * limit;
+    const { id }  = req.params;
+    const page    = parseInt(req.query.page)  || 1;
+    const limit   = parseInt(req.query.limit) || 20;
+    const skip    = (page - 1) * limit;
 
     const tradingAccount = await TradingAccount.findOne({ account: id }, { _id: 1 });
     if (!tradingAccount) {
