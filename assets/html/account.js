@@ -143,7 +143,7 @@ const toNext = (account) =>
 const accountPhaseTwo = (account, userName) =>
   emailTemplate(`
       <img
-            src="https://res.cloudinary.com/dj5inosqh/image/upload/v1725905218/IMG_1435_z6t7ua.png"
+            src="https://res.cloudinary.com/dqtevw6ky/image/upload/v1773096728/hf_20260309_212637_fccdb7d7-fd9e-4731-a832-e126b0a05ee8_tyeri9.png"
             alt="Header"
             style="
               display: block;

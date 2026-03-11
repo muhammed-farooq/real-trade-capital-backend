@@ -3,7 +3,7 @@ const { emailTemplate } = require("./emailTemplates");
 const orderApprove = (userName) =>
   emailTemplate(`
         <img
-src="https://res.cloudinary.com/dj5inosqh/image/upload/v1725905229/IMG_1434_rqb5ib.png"
+src="https://res.cloudinary.com/dqtevw6ky/image/upload/v1773096730/hf_20260309_203609_5b595c1c-0a58-469b-abcb-a3f36361a6c3_1_wv3fx9.png"
 alt="Header"
 style="
                                                   display: block;
