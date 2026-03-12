@@ -61,7 +61,7 @@ const TradingAccountSchema = new mongoose.Schema({
 
   // ── Sync metadata ─────────────────────────────────────────────────────────
   lastSync:  { type: Date },
-  status:    { type: String, enum: ["active", "failed", "pending"], default: "pending" },
+  status: { type: String, enum: ["active", "failed", "pending", "completed"], default: "pending" },
   syncError: { type: String },
 
 }, { timestamps: true });
