@@ -18,7 +18,7 @@ const TradingAccountSchema = new mongoose.Schema({
 
   // ── MT credentials (set after payment when user connects account) ─────────
   login:           { type: String },    // MT login = mfxAcc.accountId
-  leverage:        { type: Number },    // e.g. 100
+  leverage:        { type: String, defaulf :"1:100" },    // e.g. 100
   startingBalance: { type: Number, required: true },
 
   // ── Challenge config (copied from Package at order time) ──────────────────
@@ -53,8 +53,6 @@ const TradingAccountSchema = new mongoose.Schema({
   lastUpdateDate: { type: String },               // "MM/DD/YYYY HH:mm"
   creationDate:   { type: String },               // mfxAcc.creationDate
   firstTradeDate: { type: String },               // mfxAcc.firstTradeDate — "trading since" label
-  tracking:       { type: Number, default: 0 },   // mfxAcc.tracking (followers)
-  views:          { type: Number, default: 0 },   // mfxAcc.views
 
   // ── Computed / tracked by us ──────────────────────────────────────────────
   floatingPnl:          { type: Number, default: 0 },  // equity - balance

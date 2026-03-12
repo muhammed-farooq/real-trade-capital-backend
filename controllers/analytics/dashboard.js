@@ -117,32 +117,48 @@ const fetchTradingAcc = async (req, res) => {
 
     // ── Account summary ───────────────────────────────────────────────────────
     const account = {
-      login:             tradingAccount.login,
-      server:            tradingAccount.server,
-      leverage:          tradingAccount.leverage,
-      currency:          tradingAccount.currency,
-      balance:           tradingAccount.balance,
-      equity:            tradingAccount.equity,
-      startingBalance:   tradingAccount.startingBalance,
-      floatingPnl:       tradingAccount.floatingPnl,
-      daily:             tradingAccount.daily,
-      monthly:           tradingAccount.monthly,
-      gain:              tradingAccount.gain,
-      absGain:           tradingAccount.absGain,
-      drawdown:          tradingAccount.drawdown,
-      profit:            tradingAccount.profit,
-      deposits:          tradingAccount.deposits,
-      withdrawals:       tradingAccount.withdrawals,
-      interest:          tradingAccount.interest,
-      commission:        tradingAccount.commission,
+      // ── Identity ────────────────────────────────────────────────────────────
+      login:           tradingAccount.login,
+      server:          tradingAccount.server,
+      leverage:        tradingAccount.leverage,       // set manually at account creation
+      currency:        tradingAccount.currency,
+      demo:            tradingAccount.demo,
+
+      // ── Balances ────────────────────────────────────────────────────────────
+      balance:         tradingAccount.balance,
+      equity:          tradingAccount.equity,
+      equityPercent:   tradingAccount.equityPercent,
+      startingBalance: tradingAccount.startingBalance,
+      floatingPnl:     tradingAccount.floatingPnl,
+      // freeMargin / marginLevel not available from MyfxBook API
+
+      // ── P&L ─────────────────────────────────────────────────────────────────
+      profit:          tradingAccount.profit,
+      gain:            tradingAccount.gain,
+      absGain:         tradingAccount.absGain,
+      daily:           tradingAccount.daily,
+      monthly:         tradingAccount.monthly,
+      pips:            tradingAccount.pips,
+      profitFactor:    tradingAccount.profitFactor,
+
+      // ── Costs ───────────────────────────────────────────────────────────────
+      deposits:        tradingAccount.deposits,
+      withdrawals:     tradingAccount.withdrawals,
+      interest:        tradingAccount.interest,
+      commission:      tradingAccount.commission,
+
+      // ── Risk ────────────────────────────────────────────────────────────────
+      drawdown:          tradingAccount.drawdown,       // MyfxBook max drawdown %
       dailyHighBalance:  tradingAccount.dailyHighBalance,
       dailyDrawdownUsed: parseFloat(Math.abs(currentDailyLoss).toFixed(2)),
       maxDrawdownUsed:   parseFloat(Math.abs(currentTotalDrawdown).toFixed(2)),
-      demo:              tradingAccount.demo,
-      status:            tradingAccount.status,
-      lastSync:          tradingAccount.lastSync,
-      firstTradeDate:    tradingAccount.firstTradeDate,
-      creationDate:      tradingAccount.creationDate,
+
+      // ── Meta ────────────────────────────────────────────────────────────────
+      status:          tradingAccount.status,
+      lastSync:        tradingAccount.lastSync,
+      lastUpdateDate:  tradingAccount.lastUpdateDate,
+      firstTradeDate:  tradingAccount.firstTradeDate,
+      creationDate:    tradingAccount.creationDate,
     };
 
     return res.status(200).json({

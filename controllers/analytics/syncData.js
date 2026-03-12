@@ -39,28 +39,81 @@ const mfxGet = (endpoint, params) => new Promise((resolve, reject) => {
 const today   = ()  => new Date().toISOString().split("T")[0];
 const daysAgo = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().split("T")[0]; };
 
-const syncOne = async (account, session) => {
+// ── Concurrency limiter ───────────────────────────────────────────────────────
+// Runs tasks in batches of `limit` to avoid hammering MyfxBook API
+const pLimit = (tasks, limit) => {
+  return new Promise((resolve) => {
+    const results = [];
+    let started = 0, finished = 0;
+    const total = tasks.length;
+    if (total === 0) return resolve([]);
+
+    const run = () => {
+      while (started < total && started - finished < limit) {
+        const i = started++;
+        Promise.resolve()
+          .then(() => tasks[i]())
+          .then(r => { results[i] = { status: "fulfilled", value: r }; })
+          .catch(e => { results[i] = { status: "rejected",  reason: e }; })
+          .finally(() => { finished++; if (finished === total) resolve(results); else run(); });
+      }
+    };
+    run();
+  });
+};
+
+// ── syncOne ───────────────────────────────────────────────────────────────────
+// mfxAccountsMap: pre-fetched map of login -> mfxAccount (avoids N calls to get-my-accounts)
+const syncOne = async (account, session, mfxAccountsMap) => {
   const accId = account._id;
   const start = daysAgo(365);
   const end   = today();
 
-  // ── Resolve myfxbookId from login if not yet set ──────────────────────────
-  // get-my-accounts is always fetched first to find/confirm the account
+  // ── Resolve myfxbookId using pre-fetched accounts map ────────────────────
   let mfxId = account.myfxbookId;
 
-  const accRes = await mfxGet("get-my-accounts.json", { session })
-    .then(data => ({ status: "fulfilled", value: data }))
-    .catch(err => ({ status: "rejected", reason: err }));
+  const mfx = mfxAccountsMap.get(String(account.login));
 
-  if (accRes.status === "fulfilled") {
-    const mfx = accRes.value.accounts?.find(
-      (a) => String(a.accountId) === String(account.login)
-    );
-    if (mfx && !mfxId) {
-      // First time — save myfxbookId so future syncs can use it directly
+  if (mfx) {
+    // Update all account stats from the pre-fetched data
+    Object.assign(account, {
+      name:          mfx.name,
+      balance:       mfx.balance        ?? 0,
+      equity:        mfx.equity         ?? 0,
+      equityPercent: mfx.equityPercent  ?? 0,
+      profit:        mfx.profit         ?? 0,
+      gain:          mfx.gain           ?? 0,
+      absGain:       mfx.absGain        ?? 0,
+      daily:         mfx.daily          ?? 0,
+      monthly:       mfx.monthly        ?? 0,
+      drawdown:      mfx.drawdown       ?? 0,
+      deposits:      mfx.deposits       ?? 0,
+      withdrawals:   mfx.withdrawals    ?? 0,
+      interest:      mfx.interest       ?? 0,
+      commission:    mfx.commission     ?? 0,
+      currency:      mfx.currency       ?? "USD",
+      profitFactor:  mfx.profitFactor   ?? 0,
+      pips:          mfx.pips           ?? 0,
+      demo:          mfx.demo           ?? false,
+      server:        mfx.server?.name   ?? account.server,
+      lastUpdateDate: mfx.lastUpdateDate,
+      creationDate:   mfx.creationDate,
+      firstTradeDate: mfx.firstTradeDate,
+    });
+
+    if (!mfxId) {
       account.myfxbookId = mfx.id;
       mfxId = mfx.id;
       console.log(`[syncOne] resolved myfxbookId=${mfxId} for login=${account.login}`);
+    }
+
+    // Daily high balance reset/update
+    const storedDay = account.dailyHighBalanceDate?.toISOString?.()?.split("T")[0];
+    if (storedDay !== today()) {
+      account.dailyHighBalance     = mfx.balance;
+      account.dailyHighBalanceDate = new Date();
+    } else if (mfx.balance > (account.dailyHighBalance ?? 0)) {
+      account.dailyHighBalance = mfx.balance;
     }
   }
 
@@ -69,98 +122,70 @@ const syncOne = async (account, session) => {
     return;
   }
 
-  // ── Fetch remaining endpoints in parallel ─────────────────────────────────
+  // ── Fetch per-account endpoints in parallel ───────────────────────────────
   const [openRes, ordersRes, historyRes, gainRes, dailyRes] =
     await Promise.allSettled([
-      mfxGet("get-open-trades.json",  { session, id: mfxId }),
-      mfxGet("get-open-orders.json",  { session, id: mfxId }),
-      mfxGet("get-history.json",      { session, id: mfxId }),
-      mfxGet("get-daily-gain.json",   { session, id: mfxId, start, end }),
-      mfxGet("get-data-daily.json",   { session, id: mfxId, start, end }),
+      mfxGet("get-open-trades.json", { session, id: mfxId }),
+      mfxGet("get-open-orders.json", { session, id: mfxId }),
+      mfxGet("get-history.json",     { session, id: mfxId }),
+      mfxGet("get-daily-gain.json",  { session, id: mfxId, start, end }),
+      mfxGet("get-data-daily.json",  { session, id: mfxId, start, end }),
     ]);
 
-  // log unexpected failures (open-orders excluded — not always enabled)
+  // Log unexpected failures (open-orders excluded — not always enabled)
   [openRes, historyRes, gainRes, dailyRes].forEach((r, i) => {
-    const names = ["get-open-trades","get-history","get-daily-gain","get-data-daily"];
+    const names = ["get-open-trades", "get-history", "get-daily-gain", "get-data-daily"];
     if (r.status === "rejected") console.error(`[syncOne] ${names[i]} FAILED:`, r.reason?.message ?? r.reason);
   });
 
-  // ── 1. Account stats ──────────────────────────────────────────────────────
-  if (accRes.status === "fulfilled") {
-    const mfx = accRes.value.accounts?.find(
-      (a) => String(a.accountId) === String(account.login)
-    );
-    if (mfx) {
-      Object.assign(account, {
-        name: mfx.name,               balance: mfx.balance        ?? 0,
-        equity: mfx.equity ?? 0,      equityPercent: mfx.equityPercent ?? 0,
-        profit: mfx.profit ?? 0,      gain: mfx.gain              ?? 0,
-        absGain: mfx.absGain ?? 0,    daily: mfx.daily            ?? 0,
-        monthly: mfx.monthly ?? 0,    drawdown: mfx.drawdown      ?? 0,
-        deposits: mfx.deposits ?? 0,  withdrawals: mfx.withdrawals ?? 0,
-        interest: mfx.interest ?? 0,  commission: mfx.commission  ?? 0,
-        currency: mfx.currency ?? "USD",
-        profitFactor: mfx.profitFactor ?? 0,
-        pips: mfx.pips ?? 0,          demo: mfx.demo ?? false,
-        server: mfx.server?.name ?? account.server,
-        lastUpdateDate: mfx.lastUpdateDate,
-        creationDate:   mfx.creationDate,
-        firstTradeDate: mfx.firstTradeDate,
-        tracking: mfx.tracking ?? 0,  views: mfx.views ?? 0,
-      });
-
-      // daily high balance
-      const storedDay = account.dailyHighBalanceDate?.toISOString?.()?.split("T")[0];
-      if (storedDay !== today()) {
-        account.dailyHighBalance     = mfx.balance;
-        account.dailyHighBalanceDate = new Date();
-      } else if (mfx.balance > (account.dailyHighBalance ?? 0)) {
-        account.dailyHighBalance = mfx.balance;
-      }
-    }
-  }
-
-  // ── 2. Open trades — delete all + re-insert (they change every sync) ──────
+  // ── 2. Open trades ────────────────────────────────────────────────────────
   if (openRes.status === "fulfilled") {
     const trades = openRes.value.openTrades ?? [];
     await OpenTrade.deleteMany({ tradingAccount: accId, isPending: false });
     if (trades.length) {
       await OpenTrade.insertMany(trades.map((t) => ({
         tradingAccount: accId,
-        symbol: t.symbol,       action: t.action,
-        lots:   parseFloat(t.sizing?.value ?? t.lots ?? 0),
-        openPrice: t.openPrice, tp: t.tp ?? 0,   sl: t.sl ?? 0,
-        profit: parseFloat(t.profit ?? 0),
-        pips:   parseFloat(t.pips   ?? 0),
-        swap:   parseFloat(t.swap   ?? 0),
-        comment: t.comment ?? "",
-        openTime: t.openTime,   isPending: false,
+        symbol:    t.symbol,
+        action:    t.action,
+        lots:      parseFloat(t.sizing?.value ?? t.lots ?? 0),
+        openPrice: t.openPrice,
+        tp:        t.tp   ?? 0,
+        sl:        t.sl   ?? 0,
+        profit:    parseFloat(t.profit ?? 0),
+        pips:      parseFloat(t.pips   ?? 0),
+        swap:      parseFloat(t.swap   ?? 0),
+        comment:   t.comment  ?? "",
+        openTime:  t.openTime,
+        isPending: false,
       })));
     }
-    // floating P&L = sum of open trade profits
     account.floatingPnl = trades.reduce((s, t) => s + parseFloat(t.profit ?? 0), 0);
   }
 
-  // ── 3. Open orders — optional, some accounts don't have this feature enabled
+  // ── 3. Open orders (optional) ─────────────────────────────────────────────
   if (ordersRes.status === "fulfilled") {
     const orders = ordersRes.value.openOrders ?? [];
     await OpenTrade.deleteMany({ tradingAccount: accId, isPending: true });
     if (orders.length) {
       await OpenTrade.insertMany(orders.map((t) => ({
         tradingAccount: accId,
-        symbol: t.symbol,       action: t.action,
-        lots:   parseFloat(t.sizing?.value ?? t.lots ?? 0),
-        openPrice: t.openPrice, tp: t.tp ?? 0, sl: t.sl ?? 0,
-        profit: 0, pips: 0, swap: 0,
-        comment: t.comment ?? "",
-        openTime: t.openTime,   isPending: true,
+        symbol:    t.symbol,
+        action:    t.action,
+        lots:      parseFloat(t.sizing?.value ?? t.lots ?? 0),
+        openPrice: t.openPrice,
+        tp:        t.tp ?? 0,
+        sl:        t.sl ?? 0,
+        profit:    0,
+        pips:      0,
+        swap:      0,
+        comment:   t.comment ?? "",
+        openTime:  t.openTime,
+        isPending: true,
       })));
     }
   }
-  // get-open-orders returns "Invalid session" if the account doesn't have
-  // the Orders feature enabled on MyfxBook — this is expected, not an error.
 
-  // ── 4. Trade history — upsert only, never delete ──────────────────────────
+  // ── 4. Trade history ──────────────────────────────────────────────────────
   if (historyRes.status === "fulfilled") {
     const history = historyRes.value.history ?? [];
     if (history.length) {
@@ -176,16 +201,20 @@ const syncOne = async (account, session) => {
             },
             update: { $set: {
               tradingAccount: accId,
-              symbol: t.symbol,        action: t.action,
-              lots:   parseFloat(t.sizing?.value ?? t.lots ?? 0),
-              openPrice:  t.openPrice, closePrice: t.closePrice,
-              tp: t.tp ?? 0,           sl: t.sl ?? 0,
-              profit:     parseFloat(t.profit     ?? 0),
-              pips:       parseFloat(t.pips       ?? 0),
-              swap:       parseFloat(t.interest   ?? t.swap ?? 0),
-              commission: parseFloat(t.commission ?? 0),
+              symbol:     t.symbol,
+              action:     t.action,
+              lots:       parseFloat(t.sizing?.value ?? t.lots ?? 0),
+              openPrice:  t.openPrice,
+              closePrice: t.closePrice,
+              tp:         t.tp   ?? 0,
+              sl:         t.sl   ?? 0,
+              profit:     parseFloat(t.profit      ?? 0),
+              pips:       parseFloat(t.pips        ?? 0),
+              swap:       parseFloat(t.interest    ?? t.swap ?? 0),
+              commission: parseFloat(t.commission  ?? 0),
               comment:    t.comment   ?? "",
-              openTime:   t.openTime, closeTime: t.closeTime,
+              openTime:   t.openTime,
+              closeTime:  t.closeTime,
             }},
             upsert: true,
           },
@@ -195,9 +224,8 @@ const syncOne = async (account, session) => {
     }
   }
 
-  // ── 5. Daily gain — upsert per date ──────────────────────────────────────
+  // ── 5. Daily gain ─────────────────────────────────────────────────────────
   if (gainRes.status === "fulfilled") {
-    // MyfxBook returns dailyGain as [[{...}],[{...}]] — same as dataDaily, unwrap each row
     const rawGain = gainRes.value.dailyGain ?? [];
     const rows = rawGain.map((r) => Array.isArray(r) ? r[0] : r).filter(Boolean);
     if (rows.length) {
@@ -219,9 +247,8 @@ const syncOne = async (account, session) => {
     }
   }
 
-  // ── 6. Data daily (balance curve) — upsert per date ──────────────────────
+  // ── 6. Data daily ─────────────────────────────────────────────────────────
   if (dailyRes.status === "fulfilled") {
-    // MyfxBook returns dataDaily as [[{...}],[{...}]] — each row is wrapped in an array
     const rawDaily = dailyRes.value.dataDaily ?? [];
     const rows = rawDaily.map((r) => Array.isArray(r) ? r[0] : r).filter(Boolean);
     if (rows.length) {
@@ -232,10 +259,10 @@ const syncOne = async (account, session) => {
             update: { $set: {
               tradingAccount: accId,
               date:    d.date,
-              balance: parseFloat(d.balance   ?? 0),
-              profit:  parseFloat(d.profit    ?? 0),
-              pips:    parseFloat(d.pips      ?? 0),
-              lots:    parseFloat(d.lots      ?? 0),
+              balance: parseFloat(d.balance  ?? 0),
+              profit:  parseFloat(d.profit   ?? 0),
+              pips:    parseFloat(d.pips     ?? 0),
+              lots:    parseFloat(d.lots     ?? 0),
             }},
             upsert: true,
           },
@@ -245,38 +272,55 @@ const syncOne = async (account, session) => {
     }
   }
 
-  // ── 7. Save updated account stats ────────────────────────────────────────
+  // ── 7. Save ───────────────────────────────────────────────────────────────
   account.status    = "active";
   account.lastSync  = new Date();
   account.syncError = undefined;
   await account.save();
 };
 
+// ── syncAllAccounts ───────────────────────────────────────────────────────────
+const CONCURRENCY = 5; // max accounts synced simultaneously — safe for MyfxBook
+
 const syncAllAccounts = async () => {
   try {
-    let session = await getSession();
+    const session = await getSession();
     if (!session) { console.log("[sync] no session found"); return; }
-
 
     const accounts = await TradingAccount.find({
       status: { $in: ["active", "pending"] },
-      login:  { $exists: true, $ne: null },   // has MT login = ready to sync
+      login:  { $exists: true, $ne: null },
     });
 
     if (!accounts.length) { console.log("[sync] no active accounts"); return; }
 
-    console.log(`[sync] syncing ${accounts.length} accounts...`);
+    // ── Fetch get-my-accounts ONCE for all accounts ───────────────────────
+    // Builds a Map of login -> mfxAccount to avoid N redundant API calls
+    let mfxAccountsMap = new Map();
+    try {
+      const data = await mfxGet("get-my-accounts.json", { session });
+      (data.accounts ?? []).forEach((a) => {
+        mfxAccountsMap.set(String(a.accountId), a);
+      });
+      console.log(`[sync] fetched ${mfxAccountsMap.size} MyfxBook accounts`);
+    } catch (err) {
+      console.error("[sync] get-my-accounts FAILED:", err.message);
+      // Continue anyway — accounts with existing myfxbookId can still sync
+    }
 
-    await Promise.allSettled(
-      accounts.map((acc) =>
-        syncOne(acc, session).catch((err) => {
-          console.error(`[sync] failed ${acc._id}:`, err.message);
-          acc.status    = "failed";
-          acc.syncError = err.message;
-          return acc.save().catch(() => {});
-        })
-      )
+    console.log(`[sync] syncing ${accounts.length} accounts (concurrency=${CONCURRENCY})...`);
+
+    // ── Run with concurrency limit ────────────────────────────────────────
+    const tasks = accounts.map((acc) => () =>
+      syncOne(acc, session, mfxAccountsMap).catch((err) => {
+        console.error(`[sync] failed ${acc._id}:`, err.message);
+        acc.status    = "failed";
+        acc.syncError = err.message;
+        return acc.save().catch(() => {});
+      })
     );
+
+    await pLimit(tasks, CONCURRENCY);
 
     console.log("[sync] done");
   } catch (err) {
