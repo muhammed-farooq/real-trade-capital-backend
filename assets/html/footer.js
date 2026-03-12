@@ -1,326 +1,66 @@
 const footer = () => `
-   
-                      <table
-                        cellspacing="0"
-                        cellpadding="0"
-                        align="center"
-                        style="
-                          border-collapse: collapse;
-                          border-spacing: 0px;
-                          table-layout: fixed !important;
-                          width: 100%;
-                        "
-                      >
-                        <tbody>
-                          <tr>
-                            <td align="center" style="padding: 0; margin: 0">
-                              <table
-                                cellspacing="0"
-                                cellpadding="0"
-                                bgcolor="#ffffff"
-                                align="center"
-                                style="
-                                  border-collapse: collapse;
-                                  border-spacing: 0px;
-                                  background-color: #ffffff;
-                                  width: 600px;
-                                "
-                              >
-                                <tbody>
-                                  <tr>
-                                    <td
-                                      align="center"
-                                      style="
-                                        margin: 0;
-                                        padding-left: 10px;
-                                        padding-right: 10px;
-                                        padding-top: 20px;
-                                        padding-bottom: 10px;
-                                        font-size: 0;
-                                      "
-                                    >
-                                      <table
-                                        border="0"
-                                        width="100%"
-                                        height="100%"
-                                        cellpadding="0"
-                                        cellspacing="0"
-                                        role="presentation"
-                                        style="
-                                          border-collapse: collapse;
-                                          border-spacing: 0px;
-                                        "
-                                      >
-                                        <tbody>
-                                          <tr>
-                                            <td
-                                              style="
-                                                padding: 0;
-                                                margin: 0;
-                                                border-bottom: 1px solid #cccccc;
-                                                background: unset;
-                                                height: 1px;
-                                                width: 100%;
-                                                margin: 0px;
-                                              "
-                                            ></td>
-                                          </tr>
-                                        </tbody>
-                                      </table>
-                                    </td>
-                                  </tr>
-                                  <tr>
-                                    <td
-                                      align="left"
-                                      style="
-                                        margin: 0;
-                                        padding-top: 20px;
-                                        padding-left: 20px;
-                                        padding-right: 20px;
-                                        padding-bottom: 25px;
-                                      "
-                                    >
-                                      <table
-                                        cellpadding="0"
-                                        cellspacing="0"
-                                        width="100%"
-                                        style="
-                                          border-collapse: collapse;
-                                          border-spacing: 0px;
-                                        "
-                                      >
-                                        <tbody>
-                                          <tr>
-                                            <td
-                                              align="center"
-                                              valign="top"
-                                              style="
-                                                padding: 0;
-                                                margin: 0;
-                                                width: 560px;
-                                              "
-                                            >
-                                              <table
-                                                cellpadding="0"
-                                                cellspacing="0"
-                                                width="100%"
-                                                role="presentation"
-                                                style="
-                                                  border-collapse: collapse;
-                                                  border-spacing: 0px;
-                                                "
-                                              >
-                                                <tbody>
-                                                  <tr>
-                                                    <td
-                                                      align="center"
-                                                      style="
-                                                        padding: 0;
-                                                        margin: 0;
-                                                      "
-                                                    >
-                                                      <h3
-                                                        style="
-                                                          margin: 0;
-                                                          line-height: 24px;
-                                                          font-family: roboto,
-                                                            'helvetica neue',
-                                                            helvetica, arial,
-                                                            sans-serif;
-                                                          font-size: 20px;
-                                                          font-style: normal;
-                                                          font-weight: 500;
-                                                          color: #000000;
-                                                        "
-                                                      >
-                                                        <strong
-                                                          >Real Trade Capital</strong
-                                                        >
-                                                      </h3>
-                                                    </td>
-                                                  </tr>
-                                                  <tr>
-                                                    <td
-                                                      align="left"
-                                                      style="
-                                                        padding: 0;
-                                                        margin: 0;
-                                                        padding-top: 15px;
-                                                      "
-                                                    >
-                                                      <p
-                                                        style="
-                                                          margin: 0;
-                                                          font-family: arial,
-                                                            'helvetica neue',
-                                                            helvetica,
-                                                            sans-serif;
-                                                          line-height: 24px;
-                                                          color: #333333;
-                                                          font-size: 16px;
-                                                        "
-                                                      >
-                                                        If you require
-                                                        additional assistance,
-                                                        our support team is
-                                                        always available to help
-                                                        at&nbsp;<u
-                                                          ><a
-                                                            href="mailto:support@fundingpips.com"
-                                                            style="
-                                                              text-decoration: underline;
-                                                              color: #333333;
-                                                              font-size: 16px;
-                                                            "
-                                                            target="_blank"
-                                                            >support@realtradecapital.com</a
-                                                          ></u
-                                                        >&nbsp;or through the
-                                                        support page on the
-                                                        website.
-                                                      </p>
-                                                      <p
-                                                        style="
-                                                          margin: 0;
-                                                          font-family: arial,
-                                                            'helvetica neue',
-                                                            helvetica,
-                                                            sans-serif;
-                                                          line-height: 24px;
-                                                          color: #333333;
-                                                          font-size: 16px;
-                                                        "
-                                                      >
-                                                        <br />
-                                                      </p>
-                                                      <p
-                                                        style="
-                                                          margin: 0;
-                                                          font-family: arial,
-                                                            'helvetica neue',
-                                                            helvetica,
-                                                            sans-serif;
-                                                          line-height: 24px;
-                                                          color: #333333;
-                                                          font-size: 16px;
-                                                        "
-                                                      >
-                                                        Kind regards,
-                                                      </p>
-                                                      <p
-                                                        style="
-                                                          margin: 0;
-                                                          font-family: arial,
-                                                            'helvetica neue',
-                                                            helvetica,
-                                                            sans-serif;
-                                                          line-height: 24px;
-                                                          color: #333333;
-                                                          font-size: 16px;
-                                                        "
-                                                      >
-                                                        Real Trade Capital Team
-                                                      </p>
-                                                    </td>
-                                                  </tr>
-                                                </tbody>
-                                              </table>
-                                            </td>
-                                          </tr>
-                                        </tbody>
-                                      </table>
-                                    </td>
-                                  </tr>
-                                </tbody>
-                              </table>
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                      <table
-                        cellpadding="0"
-                        cellspacing="0"
-                        align="center"
-                        style="
-                          border-collapse: collapse;
-                          border-spacing: 0px;
-                          table-layout: fixed !important;
-                          width: 100%;
-                          background-color: transparent;
-                          background-repeat: repeat;
-                          background-position: center top;
-                        "
-                      >
-                        <tbody>
-                          <tr>
-                            <td align="center" style="padding: 0; margin: 0">
-                              <table
-                                bgcolor="#ffffff"
-                                align="center"
-                                cellpadding="0"
-                                cellspacing="0"
-                                style="
-                                  border-collapse: collapse;
-                                  border-spacing: 0px;
-                                  background-color: #ffffff;
-                                  width: 600px;
-                                "
-                              >
-                                <tbody>
-                                  <tr>
-                                    <td
-                                      align="left"
-                                      bgcolor="#000000"
-                                      style="
-                                        padding: 5px;
-                                        margin: 0;
-                                        background-color: #a70000;
-                                      "
-                                    >
-                                      <table
-                                        cellpadding="0"
-                                        cellspacing="0"
-                                        align="left"
-                                        style="
-                                          border-collapse: collapse;
-                                          border-spacing: 0px;
-                                          float: left;
-                                        "
-                                      >
-                                        <tbody>
-                                          <tr>
-                                            <td
-                                              align="center"
-                                              valign="top"
-                                              style="
-                                                padding: 0;
-                                                margin: 0;
-                                                width: 270px;
-                                              "
-                                            >
-                                              <table
-                                                cellpadding="0"
-                                                cellspacing="0"
-                                                width="100%"
-                                                role="presentation"
-                                                style="
-                                                  border-collapse: collapse;
-                                                  border-spacing: 0px;
-                                                "
-                                              >
-                                              </table>
-                                            </td>
-                                          </tr>
-                                        </tbody>
-                                      </table>
-                                    </td>
-                                  </tr>
-                                </tbody>
-                              </table>
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
+  <!-- Footer Support Block -->
+  <table cellspacing="0" cellpadding="0" align="center" style="border-collapse:collapse;border-spacing:0;table-layout:fixed!important;width:100%;">
+    <tbody>
+      <tr>
+        <td align="center" style="padding:0;margin:0;">
+          <table cellspacing="0" cellpadding="0" align="center" style="border-collapse:collapse;border-spacing:0;width:600px;">
+            <tbody>
+              <tr>
+                <td style="padding:32px;background:#0a0a0a;">
+                  <!-- Divider -->
+                  <table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+                    <tbody>
+                      <tr>
+                        <td style="height:1px;background:linear-gradient(90deg,transparent,#2a2a2a,transparent);"></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <!-- Support text -->
+                  <table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin-top:0;">
+                    <tbody>
+                      <tr>
+                        <td style="padding-top:28px;padding-bottom:8px;">
+                          <p style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:13px;color:#555;letter-spacing:2px;text-transform:uppercase;text-align:center;">Need Assistance?</p>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding-top:10px;text-align:center;">
+                          <a href="mailto:support@realtradecapital.com" style="font-family:'Courier New',Courier,monospace;font-size:14px;color:#e74c3c;text-decoration:none;letter-spacing:1px;border-bottom:1px solid #3a1a1a;padding-bottom:2px;">support@realtradecapital.com</a>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding-top:28px;text-align:center;">
+                          <p style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:13px;color:#444;line-height:22px;">Kind regards,<br/><span style="color:#ccc;font-weight:bold;letter-spacing:1px;">Real Trade Capital Team</span></p>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </td>
+              </tr>
+              <!-- Bottom bar -->
+              <tr>
+                <td style="height:3px;background:linear-gradient(90deg,#c0392b 0%,#e74c3c 40%,#ff6b6b 70%,#c0392b 100%);border-radius:0 0 16px 16px;"></td>
+              </tr>
+            </tbody>
+          </table>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <!-- Legal footer -->
+  <table cellspacing="0" cellpadding="0" align="center" style="border-collapse:collapse;width:100%;">
+    <tbody>
+      <tr>
+        <td align="center" style="padding:20px 32px;">
+          <p style="margin:0;font-family:'Courier New',Courier,monospace;font-size:10px;color:#999;letter-spacing:1px;text-align:center;line-height:18px;">
+            © 2025 Real Trade Capital. All rights reserved.<br/>
+            This email was sent to you as a registered member of the Real Trade Capital platform.
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
 `;
 
 module.exports = footer;

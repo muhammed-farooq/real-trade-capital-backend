@@ -1,341 +1,202 @@
 const { emailTemplate } = require("./emailTemplates");
 
+const badge = (label, color = "#e74c3c") => `
+  <table cellspacing="0" cellpadding="0" style="border-collapse:collapse;display:inline-table;">
+    <tbody>
+      <tr>
+        <td style="padding:5px 14px;background:${color}18;border:1px solid ${color}44;border-radius:20px;">
+          <span style="font-family:'Courier New',Courier,monospace;font-size:11px;color:${color};letter-spacing:2px;text-transform:uppercase;font-weight:600;">${label}</span>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+`;
+ 
+const dashboardButton = (url) => `
+  <table cellspacing="0" cellpadding="0" align="center" style="border-collapse:collapse;margin-top:32px;">
+    <tbody>
+      <tr>
+        <td align="center">
+          <a href="${url}" target="_blank" style="display:inline-block;background:linear-gradient(135deg,#c0392b,#e74c3c);color:#fff;font-family:'Courier New',Courier,monospace;font-size:13px;font-weight:700;letter-spacing:3px;text-transform:uppercase;text-decoration:none;padding:16px 40px;border-radius:4px;border:none;">
+            Access Dashboard →
+          </a>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+`;
+ 
+const divider = () => `
+  <table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin:32px 0;">
+    <tbody>
+      <tr>
+        <td style="height:1px;background:linear-gradient(90deg,transparent,#2a2a2a,transparent);"></td>
+      </tr>
+    </tbody>
+  </table>
+`;
+ 
+const statRow = (label, value) => `
+  <tr>
+    <td style="padding:12px 16px;border-bottom:1px solid #1a1a1a;">
+      <table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+        <tbody>
+          <tr>
+            <td style="font-family:'Courier New',Courier,monospace;font-size:11px;color:#555;letter-spacing:2px;text-transform:uppercase;">${label}</td>
+            <td align="right" style="font-family:'Courier New',Courier,monospace;font-size:13px;color:#e0e0e0;font-weight:600;">${value}</td>
+          </tr>
+        </tbody>
+      </table>
+    </td>
+  </tr>
+`;
+ 
+/* ─── ORDER APPROVE ──────────────────────────────────────── */
+ 
 const orderApprove = (userName) =>
   emailTemplate(`
-        <img
-src="https://res.cloudinary.com/dqtevw6ky/image/upload/v1773096730/hf_20260309_203609_5b595c1c-0a58-469b-abcb-a3f36361a6c3_1_wv3fx9.png"
-alt="Header"
-style="
-                                                  display: block;
-                                                  border: 0;
-                                                  outline: none;
-                                                  text-decoration: none;
-                                                  padding-top: 5px;
-                                                      margin-left: auto;
-    margin-right: auto;
-                                                "
-                                                width="600"
-                                                
-                                                class="CToWUd a6T"
-                                                data-bit="iit"
-                                                tabindex="0"
-                                              />
-                                         <table
-                                cellpadding="0"
-                                cellspacing="0"
-                                width="100%"
-                                style="
-                                 border-collapse: collapse;
-                          border-spacing: 0px;
-                          background-color: #ffffff;
-                              margin-left: auto;
-    margin-right: auto;
-                          width: 600px;margin-top: 30px;
-                                "
-                              >
-                                <tbody>
-                                  <tr>
-                                    <td
-                                      align="center"
-                                      valign="top"
-                                      style="
-                                        padding: 0;
-                                        margin: 0;
-                                        width: 560px;
-                                      "
-                                    >
-                                      <table
-                                        cellpadding="0"
-                                        cellspacing="0"
-                                        width="100%"
-                                        role="presentation"
-                                        style="
-                                          border-collapse: collapse;
-                                          border-spacing: 0px;
-                                        "
-                                      >
-                                        <tbody>
-                                          <tr>
-                                            <td
-                                              align="center"
-                                              style="padding: 0; margin: 0"
-                                            >
-                                              <h2
-                                                style="
-                                                  margin: 0;
-                                                  line-height: 26px;
-                                                  font-family: roboto,
-                                                    'helvetica neue', helvetica,
-                                                    arial, sans-serif;
-                                                  font-size: 22px;
-                                                  font-style: normal;
-                                                  font-weight: 500;
-                                                  color: #000000;
-                                                "
-                                              >
-                                                <strong>Hi ${userName}</strong>
-                                              </h2>
-                                            </td>
-                                          </tr>
-                                          <tr>
-                                            <td
-                                              align="center"
-                                              style="
-                                                padding: 0;
-                                                margin: 0;
-                                                padding-top: 15px;
-                                              "
-                                            >
-                                              <h3
-                                                style="
-                                                  margin: 0;
-                                                  line-height: 32px;
-                                                  font-family: roboto,
-                                                    'helvetica neue', helvetica,
-                                                    arial, sans-serif;
-                                                  font-size: 30px;
-                                                  font-style: normal;
-                                                  font-weight: 500;
-                                                  color: #000000;
-                                                "
-                                              >
-                                                <strong
-                                                  >Welcome to the First Phase!</strong
-                                                >
-                                              </h3>
-                                            </td>
-                                          </tr>
-                                          <tr>
-                                            <td
-                                              align="left"
-                                              style="
-                                                padding: 0;
-                                                margin: 0;
-                                                padding-top: 15px;
-                                              "
-                                            >
-                                              <p
-                                                style="
-                                                  margin: 0;
-                                                  font-family: arial,
-                                                    'helvetica neue', helvetica,
-                                                    sans-serif;
-                                                  line-height: 24px;
-                                                  color: #333333;
-                                                  font-size: 16px;
-                                                "
-                                              >
-                                              We are excited to inform you that your trading journey has officially begun. You are now entering the first phase of your challenge. Best of luck as you take this important step forward!
-                                             
-                                              
-                                              
-                                              </p>
-                                              <p></p>
-                                              <p
-                                                style="
-                                                  margin: 0;
-                                                  font-family: arial,
-                                                    'helvetica neue', helvetica,
-                                                    sans-serif;
-                                                  line-height: 24px;
-                                                  color: #333333;
-                                                  font-size: 16px;
-                                                "
-                                              >
-                                              Best of luck with your continued trading journey.
-                                              </p>
-                                              <p></p>
-                                              <p
-                                                style="
-                                                  margin: 0;
-                                                  font-family: arial,
-                                                    'helvetica neue', helvetica,
-                                                    sans-serif;
-                                                  line-height: 24px;
-                                                  color: #333333;
-                                                  font-size: 16px;
-                                                "
-                                              >
-                                                Please review our trading rules and objectives to ensure you remain in compliance and avoid any unintentional violations. <br><br>
-                                                <strong>
-                                                  Your account credentials have been updated in your dashboard. Please log in to access them.
-                                                </strong>
-                                              </p>
-                                            </td>
-                                          </tr>
-                                        </tbody>
-                                      </table>
-                                      <table
-                                        cellpadding="0"
-                                        cellspacing="0"
-                                        width="100%"
-                                        role="presentation"
-                                        style="
-                                          border-collapse: collapse;
-                                          border-spacing: 0px;
-                                        "
-                                      >
-                                        <tbody>
-                                          <tr></tr>
-                                          <tr>
-                                            <td
-                                              align="center"
-                                              style="
-                                                margin: 0;
-                                                padding-top: 10px;
-                                                padding-bottom: 10px;
-                                                padding-right: 10px;
-                                                padding-left: 35px;
-                                              "
-                                            >
-                                              <span
-                                                style="
-                                                  border-style: solid;
-                                                  border-color: #1c64f2;
-                                                  background: #1c64f2;
-                                                  border-width: 0px;
-                                                  display: inline-block;
-                                                  border-radius: 30px;
-                                                  width: auto;
-                                                "
-                                              >
-                                                <a
-                                                  href=${`${process.env.API_URL}/dashboard`}
-                                                  style="
-                                                    text-decoration: none;
-                                                    color: #ffffff;
-                                                    font-size: 14px;
-                                                    border-style: solid;
-                                                    border-color: #000000;
-                                                    border-width: 12px 20px;
-                                                    display: inline-block;
-                                                    background: #000000;
-                                                    border-radius: 10px;
-                                                    font-family: arial,
-                                                      'helvetica neue',
-                                                      helvetica, sans-serif;
-                                                    font-weight: bold;
-                                                    font-style: normal;
-                                                    line-height: 17px;
-                                                    width: auto;
-                                                    text-align: center;
-                                                  "
-                                                  target="_blank"
-                                                >
-                                                  Dashboard
-                                                </a>
-                                              </span>
-                                            </td>
-                                          </tr>
-                                        </tbody>
-                                      </table>
-                                    </td>
-                                  </tr>
-                                </tbody>
-                              </table>`);
+    <!-- Status badge -->
+    <table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;padding-top:40px;">
+      <tbody>
+        <tr>
+          <td align="center" style="padding-top:40px;">
+            ${badge("Phase 1 Activated", "#22c55e")}
+          </td>
+        </tr>
+ 
+        <!-- Hero heading -->
+        <tr>
+          <td align="center" style="padding-top:24px;padding-bottom:4px;">
+            <h1 style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:38px;font-weight:700;color:#ffffff;letter-spacing:-1px;line-height:1.1;">Welcome to the<br/><span style="color:#e74c3c;">First Phase.</span></h1>
+          </td>
+        </tr>
+ 
+        <!-- Greeting -->
+        <tr>
+          <td align="center" style="padding-top:20px;">
+            <p style="margin:0;font-family:'Courier New',Courier,monospace;font-size:14px;color:#888;letter-spacing:1px;">Hi, <strong style="color:#ccc;">${userName}</strong></p>
+          </td>
+        </tr>
+ 
+        ${divider()}
+ 
+        <!-- Body text -->
+        <tr>
+          <td style="padding-bottom:16px;">
+            <p style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:16px;color:#aaa;line-height:28px;">
+              Your trading challenge has officially been activated. You are now entering the <strong style="color:#fff;">First Phase</strong> — the first milestone on your path to becoming a funded trader with Real Trade Capital.
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding-bottom:24px;">
+            <p style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:16px;color:#aaa;line-height:28px;">
+              Your account credentials are now live in your dashboard. Review the trading rules carefully to ensure full compliance throughout your challenge.
+            </p>
+          </td>
+        </tr>
+ 
+        <!-- Info card -->
+        <tr>
+          <td style="padding-top:8px;">
+            <table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;border:1px solid #1e1e1e;border-radius:8px;overflow:hidden;">
+              <tbody>
+                <tr>
+                  <td style="background:#111;padding:14px 16px;border-bottom:1px solid #1a1a1a;">
+                    <span style="font-family:'Courier New',Courier,monospace;font-size:11px;color:#555;letter-spacing:3px;text-transform:uppercase;">Account Info</span>
+                  </td>
+                </tr>
+                ${statRow("Status", "&#9679; Active")}
+                ${statRow("Phase", "01 / Challenge Phase 1")}
+                ${statRow("Credentials", "Updated in Dashboard")}
+              </tbody>
+            </table>
+          </td>
+        </tr>
+ 
+        <!-- CTA -->
+        <tr>
+          <td align="center">
+            ${dashboardButton(`${process.env.API_URL}/dashboard`)}
+          </td>
+        </tr>
+ 
+        <tr>
+          <td align="center" style="padding-top:24px;">
+            <p style="margin:0;font-family:'Courier New',Courier,monospace;font-size:11px;color:#444;letter-spacing:2px;text-transform:uppercase;">Best of luck, ${userName}. Trade well.</p>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  `);
+ 
+/* ─── ORDER CANCELLED ────────────────────────────────────── */
+ 
 const orderCancelled = (userName) =>
-  emailTemplate(`          <table
-                                cellpadding="0"
-                                cellspacing="0"
-                                width="100%"
-                                style="
-                                  border-collapse: collapse;
-                                  border-spacing: 0px;
-                                "
-                              >
-                                <tbody>
-                                  <tr>
-                                    <td
-                                      align="center"
-                                      valign="top"
-                                      style="
-                                        padding: 0;
-                                        margin: 0;
-                                        width: 560px;
-                                      "
-                                    >
-                                      <table
-                                        cellpadding="0"
-                                        cellspacing="0"
-                                        width="100%"
-                                        role="presentation"
-                                        style="
-                                          border-collapse: collapse;
-                                          border-spacing: 0px;
-                                        "
-                                      >
-                                        <tbody>
-                                          <tr>
-                                            <td
-                                              align="center"
-                                              style="padding: 0; margin: 0"
-                                            >
-                                              <h2
-                                                style="
-                                                  margin: 0;
-                                                  line-height: 26px;
-                                                  font-family: roboto,
-                                                    'helvetica neue', helvetica,
-                                                    arial, sans-serif;
-                                                  font-size: 22px;
-                                                  font-style: normal;
-                                                  font-weight: 500;
-                                                  color: #000000;
-                                                "
-                                              >
-                                                <strong
-                                                  ><font
-                                                    style="
-                                                      vertical-align: inherit;
-                                                    "
-                                                    ><font
-                                                      style="
-                                                        vertical-align: inherit;
-                                                      "
-                                                      >Hi ${userName}</font
-                                                    ></font
-                                                  ></strong
-                                                >
-                                              </h2>
-                                            </td>
-                                          </tr>
-                                          <tr>
-                                            <td
-                                              align="left"
-                                              style="
-                                                padding: 0;
-                                                margin: 0;
-                                                padding-top: 15px;
-                                              "
-                                            >
-                                              <p
-                                                style="
-                                                  margin: 0;
-                                                  font-family: arial,
-                                                    'helvetica neue', helvetica,
-                                                    sans-serif;
-                                                  line-height: 24px;
-                                                  color: #333333;
-                                                  font-size: 16px;
-                                                "
-                                              >
-                                                Thank you for purchasing a
-                                                challenge with Real Trade
-                                                Capital. Unfortunately, we are
-                                                unable to process your challenge
-                                                at this time. If you have any
-                                                questions or need further
-                                                assistance, please feel free to
-                                                contact our support team.
-                                              </p>
-                                            </td>
-                                          </tr>
-                                        </tbody>
-                                      </table>
-                                    </td>
-                                  </tr>
-                                </tbody>
-                              </table>`);
+  emailTemplate(`
+    <table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+      <tbody>
+        <tr>
+          <td align="center" style="padding-top:40px;">
+            ${badge("Order Unsuccessful", "#f59e0b")}
+          </td>
+        </tr>
+        <tr>
+          <td align="center" style="padding-top:24px;padding-bottom:4px;">
+            <h1 style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:36px;font-weight:700;color:#ffffff;letter-spacing:-1px;line-height:1.2;">Unable to Process<br/><span style="color:#f59e0b;">Your Challenge.</span></h1>
+          </td>
+        </tr>
+        <tr>
+          <td align="center" style="padding-top:20px;">
+            <p style="margin:0;font-family:'Courier New',Courier,monospace;font-size:14px;color:#888;letter-spacing:1px;">Hi, <strong style="color:#ccc;">${userName}</strong></p>
+          </td>
+        </tr>
+ 
+        ${divider()}
+ 
+        <tr>
+          <td style="padding-bottom:16px;">
+            <p style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:16px;color:#aaa;line-height:28px;">
+              Thank you for your interest in a Real Trade Capital challenge. Unfortunately, we were unable to process your challenge request at this time.
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <p style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:16px;color:#aaa;line-height:28px;">
+              If you believe this is an error or would like to discuss further, our support team is ready to assist you.
+            </p>
+          </td>
+        </tr>
+ 
+        <!-- Info card -->
+        <tr>
+          <td style="padding-top:32px;">
+            <table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;border:1px solid #2a1a00;border-radius:8px;overflow:hidden;background:#111008;">
+              <tbody>
+                <tr>
+                  <td style="padding:16px 20px;">
+                    <p style="margin:0;font-family:'Courier New',Courier,monospace;font-size:12px;color:#f59e0b;letter-spacing:1px;line-height:22px;">
+                      → Contact us at <a href="mailto:support@realtradecapital.com" style="color:#f59e0b;">support@realtradecapital.com</a><br/>
+                      → Reference your account name when reaching out<br/>
+                      → Our team responds within 24 hours
+                    </p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </td>
+        </tr>
+ 
+        <tr>
+          <td align="center" style="padding-top:32px;">
+            <p style="margin:0;font-family:'Courier New',Courier,monospace;font-size:11px;color:#444;letter-spacing:2px;text-transform:uppercase;">We look forward to supporting you.</p>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  `);
+ 
 module.exports = {
   orderApprove,
   orderCancelled,
