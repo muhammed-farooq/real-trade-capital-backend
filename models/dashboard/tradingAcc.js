@@ -18,7 +18,7 @@ const TradingAccountSchema = new mongoose.Schema({
 
   // ── MT credentials (set after payment when user connects account) ─────────
   login:           { type: String },    // MT login = mfxAcc.accountId
-  leverage:        { type: String, defaulf :"1:100" },    // e.g. 100
+  leverage:        { type: String ,default : "100"},    // e.g. 100
   startingBalance: { type: Number, required: true },
 
   // ── Challenge config (copied from Package at order time) ──────────────────

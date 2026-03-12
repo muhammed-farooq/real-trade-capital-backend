@@ -55,6 +55,9 @@ const accountSchema = new mongoose.Schema(
       platform: {
         type: String,
       },
+      leverage : {
+        type : String
+      }
     },
     PhaseTwoCredentials: {
       email: {
@@ -72,6 +75,9 @@ const accountSchema = new mongoose.Schema(
       platform: {
         type: String,
       },
+      leverage : {
+        type : String
+      }
     },
     FundedStageCredentials: {
       email: {
@@ -90,6 +96,9 @@ const accountSchema = new mongoose.Schema(
       platform: {
         type: String,
       },
+      leverage : {
+        type : String
+      }
     },
     fondedAccountNo: {
       type: Number,
