@@ -62,6 +62,76 @@ const pLimit = (tasks, limit) => {
   });
 };
 
+// ── computeStats ──────────────────────────────────────────────────────────────
+// Pulls all closed trades for one account and computes stats + rules.
+// Called at the END of syncOne so trade history is already up to date.
+const computeStats = async (account, openTrades) => {
+  const allClosed = await TradeHistory.find(
+    { tradingAccount: account._id },
+    { profit: 1, lots: 1, closeTime: 1 }   // projection — only fields we need
+  ).lean();
+
+  const wins   = allClosed.filter((t) => t.profit > 0);
+  const losses = allClosed.filter((t) => t.profit < 0);
+
+  const tradingDays = new Set(
+    allClosed.map((t) => t.closeTime?.split(" ")[0]).filter(Boolean)
+  ).size;
+
+  const historyLots   = allClosed.length  ? Math.max(...allClosed.map((t) => t.lots ?? 0))  : 0;
+  const openLots      = openTrades.length ? Math.max(...openTrades.map((t) => t.lots ?? 0)) : 0;
+  const currentMaxLot = parseFloat(Math.max(historyLots, openLots).toFixed(2));
+
+  // ── stats ─────────────────────────────────────────────────────────────────
+  const stats = {
+    totalTrades: allClosed.length,
+    winTrades:   wins.length,
+    lossTrades:  losses.length,
+    winRate:     parseFloat((allClosed.length ? (wins.length / allClosed.length) * 100 : 0).toFixed(2)),
+    avgWin:      parseFloat((wins.length   ? wins.reduce((s, t)   => s + t.profit, 0) / wins.length   : 0).toFixed(2)),
+    avgLoss:     parseFloat((losses.length ? losses.reduce((s, t) => s + t.profit, 0) / losses.length : 0).toFixed(2)),
+    bestTrade:   parseFloat((allClosed.length ? Math.max(...allClosed.map((t) => t.profit)) : 0).toFixed(2)),
+    worstTrade:  parseFloat((allClosed.length ? Math.min(...allClosed.map((t) => t.profit)) : 0).toFixed(2)),
+    tradingDays,
+  };
+
+  // ── rules ─────────────────────────────────────────────────────────────────
+  const cfg      = account.challengeConfig ?? {};
+  const startBal = account.startingBalance ?? 0;
+  const balance  = account.balance ?? 0;
+  const dailyHigh = account.dailyHighBalance ?? balance;
+  const hasLiveData = balance > 0 && startBal > 0;
+
+  const currentDailyLoss = hasLiveData
+    ? parseFloat((((balance - dailyHigh) / startBal) * 100).toFixed(2))
+    : 0;
+
+  const currentTotalDrawdown = hasLiveData
+    ? parseFloat((Math.min(0, (balance - startBal) / startBal * 100)).toFixed(2))
+    : 0;
+
+  const currentProfit = hasLiveData
+    ? parseFloat(((balance - startBal) / startBal * 100).toFixed(2))
+    : 0;
+
+  const rules = {
+    currentDailyLoss,
+    dailyLossPassed:    Math.abs(currentDailyLoss)    <= (cfg.maxDailyLoss  ?? 5),
+    currentTotalLoss:   currentTotalDrawdown,
+    totalLossPassed:    Math.abs(currentTotalDrawdown) <= (cfg.maxTotalLoss  ?? 10),
+    currentProfit,
+    profitTargetPassed: currentProfit                  >= (cfg.profitTarget  ?? 10),
+    currentTradingDays: tradingDays,
+    tradingDaysPassed:  tradingDays                    >= (cfg.minTradingDays ?? 10),
+    currentMaxLot,
+    lotSizePassed:      currentMaxLot                  <= (cfg.maxLotSize    ?? 5),
+    dailyDrawdownUsed:  parseFloat(Math.abs(currentDailyLoss).toFixed(2)),
+    maxDrawdownUsed:    parseFloat(Math.abs(currentTotalDrawdown).toFixed(2)),
+  };
+
+  return { stats, rules };
+};
+
 // ── syncOne ───────────────────────────────────────────────────────────────────
 // mfxAccountsMap: pre-fetched map of login -> mfxAccount (avoids N calls to get-my-accounts)
 const syncOne = async (account, session, mfxAccountsMap) => {
@@ -138,12 +208,13 @@ const syncOne = async (account, session, mfxAccountsMap) => {
     if (r.status === "rejected") console.error(`[syncOne] ${names[i]} FAILED:`, r.reason?.message ?? r.reason);
   });
 
-  // ── 2. Open trades ────────────────────────────────────────────────────────
+  // ── Open trades ───────────────────────────────────────────────────────────
+  let syncedOpenTrades = [];
   if (openRes.status === "fulfilled") {
     const trades = openRes.value.openTrades ?? [];
     await OpenTrade.deleteMany({ tradingAccount: accId, isPending: false });
     if (trades.length) {
-      await OpenTrade.insertMany(trades.map((t) => ({
+      const docs = trades.map((t) => ({
         tradingAccount: accId,
         symbol:    t.symbol,
         action:    t.action,
@@ -157,7 +228,9 @@ const syncOne = async (account, session, mfxAccountsMap) => {
         comment:   t.comment  ?? "",
         openTime:  t.openTime,
         isPending: false,
-      })));
+      }));
+      await OpenTrade.insertMany(docs);
+      syncedOpenTrades = docs;
     }
     account.floatingPnl = trades.reduce((s, t) => s + parseFloat(t.profit ?? 0), 0);
   }
@@ -224,10 +297,10 @@ const syncOne = async (account, session, mfxAccountsMap) => {
     }
   }
 
-  // ── 5. Daily gain ─────────────────────────────────────────────────────────
+  // ── Daily gain ────────────────────────────────────────────────────────────
   if (gainRes.status === "fulfilled") {
-    const rawGain = gainRes.value.dailyGain ?? [];
-    const rows = rawGain.map((r) => Array.isArray(r) ? r[0] : r).filter(Boolean);
+    const rows = (gainRes.value.dailyGain ?? [])
+      .map((r) => Array.isArray(r) ? r[0] : r).filter(Boolean);
     if (rows.length) {
       await DailyGain.bulkWrite(
         rows.map((d) => ({
@@ -247,10 +320,10 @@ const syncOne = async (account, session, mfxAccountsMap) => {
     }
   }
 
-  // ── 6. Data daily ─────────────────────────────────────────────────────────
+  // ── Data daily ────────────────────────────────────────────────────────────
   if (dailyRes.status === "fulfilled") {
-    const rawDaily = dailyRes.value.dataDaily ?? [];
-    const rows = rawDaily.map((r) => Array.isArray(r) ? r[0] : r).filter(Boolean);
+    const rows = (dailyRes.value.dataDaily ?? [])
+      .map((r) => Array.isArray(r) ? r[0] : r).filter(Boolean);
     if (rows.length) {
       await DataDaily.bulkWrite(
         rows.map((d) => ({
@@ -259,10 +332,10 @@ const syncOne = async (account, session, mfxAccountsMap) => {
             update: { $set: {
               tradingAccount: accId,
               date:    d.date,
-              balance: parseFloat(d.balance  ?? 0),
-              profit:  parseFloat(d.profit   ?? 0),
-              pips:    parseFloat(d.pips     ?? 0),
-              lots:    parseFloat(d.lots     ?? 0),
+              balance: parseFloat(d.balance ?? 0),
+              profit:  parseFloat(d.profit  ?? 0),
+              pips:    parseFloat(d.pips    ?? 0),
+              lots:    parseFloat(d.lots    ?? 0),
             }},
             upsert: true,
           },
@@ -272,7 +345,9 @@ const syncOne = async (account, session, mfxAccountsMap) => {
     }
   }
 
-  // ── 7. Save ───────────────────────────────────────────────────────────────
+  const { stats, rules } = await computeStats(account, syncedOpenTrades);
+  account.stats  = stats;
+  account.rules  = rules;
   account.status    = "active";
   account.lastSync  = new Date();
   account.syncError = undefined;
