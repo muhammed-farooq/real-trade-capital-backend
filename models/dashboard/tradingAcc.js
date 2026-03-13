@@ -6,7 +6,7 @@ const ChallengeConfigSchema = new mongoose.Schema({
   maxTotalLoss:   { type: Number, default: 10 },
   profitTarget:   { type: Number, default: 10 },
   minTradingDays: { type: Number, default: 10 },
-  maxLotSize:     { type: Number, default: 5  },
+  maxLotSize:     { type: Number },
 }, { _id: false });
 
 const StatsSchema = new mongoose.Schema({
