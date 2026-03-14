@@ -34,6 +34,8 @@ const RulesSchema = new mongoose.Schema({
   lotSizePassed:      { type: Boolean, default: true },
   dailyDrawdownUsed:  { type: Number, default: 0 },
   maxDrawdownUsed:    { type: Number, default: 0 },
+  newsTrading :       { type: String, enum : ["clean","violated"], default : "clean"},
+  weekendHolding :    { type: String, enum : ["clean","violated"], default : "clean"}
 }, { _id: false });
 
 const TradingAccountSchema = new mongoose.Schema({

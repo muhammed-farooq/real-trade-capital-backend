@@ -1,5 +1,5 @@
 // jobs/syncTradingAccounts.js
-const TradingAccount = require("../../models/dashboard/tradingAcc");
+const TradingAccount = require("../../models/dashboard/tradingAccount");
 const MyFxSession    = require("../../models/dashboard/myfxSession");
 const OpenTrade      = require("../../models/dashboard/openTrade");
 const TradeHistory   = require("../../models/dashboard/tradeHistory");

@@ -40,6 +40,8 @@ const {
   fetchDailyGain,
   fetchDataDaily,
   fetchTradeHistory,
+  getAccountWarnings,
+  acknowledgeWarnings,
 } = require("../controllers/analytics/dashboard");
 
 
@@ -100,6 +102,8 @@ userRouter.get("/calendar/:week", fetchCalendar);
 userRouter.get("/trading-acc/:id", fetchTradingAcc);
 userRouter.get("/dashboard/gain/:id",    fetchDailyGain);    // ?days=90
 userRouter.get("/dashboard/balance/:id", fetchDataDaily);    // ?days=90
-userRouter.get("/dashboard/history/:id", fetchTradeHistory); // ?page=1&limit=20
+userRouter.get("/dashboard/history/:id", fetchTradeHistory); // ?page=1&limit=20 
+userRouter.get("/dashboard/warnings/:id", getAccountWarnings); 
+userRouter.post("/dashboard/warnings/acknowledge/:id", acknowledgeWarnings);
 
 module.exports = userRouter;

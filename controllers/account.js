@@ -2,9 +2,11 @@ const Account = require("../models/account");
 const CryptoJS = require("crypto-js");
 const User = require("../models/user");
 const { notification } = require("./common");
-const TradingAccount = require("../models/dashboard/tradingAcc")
+const TradingAccount = require("../models/dashboard/tradingAccount")
 const { nanoid } = require("nanoid");
 const generateUniqueAccountName = () => `RTC-${nanoid(8).toUpperCase()}`;
+const { createTradingAccount } = require("./tradingAccount");
+
 const { Resend } = require("resend");
 const {
   toNext,
@@ -115,93 +117,63 @@ const toNextStage = async (req, res) => {
     return res.status(500).json({ msg: "Server error." });
   }
 };
- 
- 
+
+
 const ApproveRequest = async (req, res) => {
   try {
     const { formValue, accountId } = req.body;
     const { username, email, password, server, platform } = formValue;
     const hashedPassword = encryptPassword(password);
- 
+
     // ── Load account + package ────────────────────────────────────────────────
     const account = await Account.findOne({ _id: accountId }).populate("package");
-    if (!account) return res.status(404).json({ error: "Account not found" });
+    if (!account)            return res.status(404).json({ error: "Account not found" });
     if (!account.toNextStep) return res.status(400).json({ error: "No pending upgrade request on this account" });
- 
+
     const packageData = account.package;
     if (!packageData) return res.status(404).json({ error: "Package not found on account" });
- 
+
     const user = await User.findById(account.userId);
     if (!user) return res.status(404).json({ error: "User not found" });
- 
-    // ── Get current TradingAccount to carry over live balance ─────────────────
+
+    // ── Validate nextStep ─────────────────────────────────────────────────────
+    const validSteps = ["Phase Two", "Funded"];
+    if (!validSteps.includes(account.nextStep)) {
+      return res.status(400).json({ error: `Invalid nextStep value: "${account.nextStep}"` });
+    }
+
+    const newPhase         = account.nextStep; // "Phase Two" | "Funded"
+    const newCredentials   = { email, username, password: hashedPassword, server, platform };
+
+    // Map nextStep → phase key used by createTradingAccount / buildChallengeConfig
+    const phaseKey = newPhase === "Phase Two" ? "PhaseTwo" : "Funded";
+
+    // ── Minimum trading days for the new phase ────────────────────────────────
+    const minTradingDays =
+      newPhase === "Phase Two"
+        ? parseInt(account.MinimumTrading.PhaseTwo) || 0
+        : parseInt(account.MinimumTrading.Funded)   || 0;
+
+    const minTradingDaysDate = new Date(Date.now() + minTradingDays * 86_400_000);
+
+    // ── Close out existing account & TradingAccount ───────────────────────────
+    account.nextStep   = "";
+    account.toNextStep = false;
+    account.status     = "Passed";
+    await account.save();
+
     const currentTradingAccount = await TradingAccount.findOne({
       account: account._id,
       status:  "active",
     });
- 
-    // ── Helper: strip "%" and parse numeric strings from Package schema ────────
-    const toNum = (v, fallback) => {
-      const n = parseFloat(String(v ?? "").replace(/[^0-9.-]/g, ""));
-      return isNaN(n) ? fallback : n;
-    };
- 
-    // ── Resolve config for the new phase ─────────────────────────────────────
-    let newPhase           = "";
-    let newChallengeConfig = null;
-    let minTradingDays     = 0;
-    const newCredentials   = { email, username, password: hashedPassword, server, platform };
- 
-    if (account.nextStep === "Phase Two") {
-      const p2       = packageData.evaluationStage.PhaseTwo;
-      newPhase       = "Phase Two";
-      minTradingDays = parseInt(account.MinimumTrading.PhaseTwo) || 0;
-      newChallengeConfig = {
-        maxDailyLoss:   toNum(p2.MaximumDailyLoss,   5),
-        maxTotalLoss:   toNum(p2.MaximumLoss,        10),
-        profitTarget:   toNum(p2.ProfitTarget,        5),
-        minTradingDays: toNum(p2.MinimumTradingDays, 10),
-        maxLotSize:     5,
-      };
- 
-    } else if (account.nextStep === "Funded") {
-      const funded   = packageData.fundedStage;
-      newPhase       = "Funded";
-      minTradingDays = parseInt(account.MinimumTrading.Funded) || 0;
-      newChallengeConfig = {
-        maxDailyLoss:   toNum(funded.MaximumDailyLoss,   5),
-        maxTotalLoss:   toNum(funded.MaximumLoss,        10),
-        profitTarget:   toNum(funded.ProfitTarget,        0),
-        minTradingDays: toNum(funded.MinimumTradingDays, 10),
-        maxLotSize:     5,
-      };
- 
-    } else {
-      return res.status(400).json({ error: `Invalid nextStep value: "${account.nextStep}"` });
-    }
- 
-    // ── Close out old account ─────────────────────────────────────────────────
-    // "Passed" = completed this phase successfully — valid enum value in schema
-    account.nextStep   = "";
-    account.toNextStep = false;
-    account.status     = "Passed";  // ✅ valid enum: "Not Passed"|"Passed"|"Pending"|"Ongoing"|"Cancelled"
-    await account.save();
- 
-    // ── Close out old TradingAccount ──────────────────────────────────────────
     if (currentTradingAccount) {
       currentTradingAccount.status = "completed";
       await currentTradingAccount.save();
     }
- 
-    // ── Build MinimumTradingDays for new account ───────────────────────────────
-    // Spread previous dates (PhaseOne date carries over for reference),
-    // then set the new phase's date. Strip _id from the subdoc toObject.
+
+    // ── Create new Account doc for the new phase ──────────────────────────────
     const { _id: _omit, ...prevMinDays } = account.MinimumTradingDays?.toObject?.() ?? {};
-    const minTradingDaysDate = new Date(Date.now() + minTradingDays * 86400000);
- 
-    // ── Create NEW Account doc for the new phase ──────────────────────────────
-    // status = "Ongoing" — trader is now actively in the new phase
-    // "Passed" only applies when they finish/exit, not when they enter
+
     const newAccount = await Account.create({
       userId:        account.userId,
       name:          account.name,
@@ -214,7 +186,7 @@ const ApproveRequest = async (req, res) => {
       paymentMethod: account.paymentMethod,
       accountName:   generateUniqueAccountName(),
       phase:         newPhase,
-      status:        "Ongoing",   // ✅ enters new phase as Ongoing, NOT Passed
+      status:        "Ongoing",
       approvedDate:  new Date(),
       MinimumTrading: account.MinimumTrading,
       MinimumTradingDays: {
@@ -228,22 +200,24 @@ const ApproveRequest = async (req, res) => {
       }),
       ...(newPhase === "Funded" && {
         FundedStageCredentials: newCredentials,
-        toFundedOn:            new Date(), 
+        toFundedOn:            new Date(),
       }),
     });
- 
-    // ── Create NEW TradingAccount ─────────────────────────────────────────────
-    await TradingAccount.create({
-      userId:          account.userId,
-      account:         newAccount._id,
-      order:           account.order,
-      login :          username,
-      startingBalance: Number(account.amountSize),
-      challengeConfig: newChallengeConfig,
-      platform,
-      status:          "pending",
+
+    // ── Create new TradingAccount via shared service ──────────────────────────
+    // buildChallengeConfig is handled internally — no inline toNum duplication.
+    // The bug where "Funded" block referenced p2.MaxLotSize is fixed inside
+    // buildChallengeConfig (uses funded.MaxLotSize correctly).
+    await createTradingAccount({
+      userId:      account.userId,
+      orderId:     account.order,
+      accountId:   newAccount._id,
+      packageId:   packageData._id,
+      accountSize: account.amountSize,
+      login:       username,
+      phase:       phaseKey,           // "PhaseTwo" | "Funded"
     });
- 
+
     // ── Notify user ───────────────────────────────────────────────────────────
     user.notifications.push(
       notification(
@@ -254,16 +228,16 @@ const ApproveRequest = async (req, res) => {
     );
     user.notificationsCount += 1;
     await user.save();
- 
+
     // ── Email ─────────────────────────────────────────────────────────────────
     const htmlContent = newPhase === "Funded"
       ? accountFunded(newAccount.accountName, account.name)
       : accountPhaseTwo(newAccount.accountName, account.name);
- 
+
     const subject = newPhase === "Funded"
       ? "Passed to Funded Stage"
       : "Passed to Second Phase";
- 
+
     try {
       await resend.emails.send({
         from: process.env.WEBSITE_MAIL,
@@ -273,16 +247,182 @@ const ApproveRequest = async (req, res) => {
       });
     } catch (emailError) {
       console.error("[ApproveRequest] email failed:", emailError.message);
-      // Non-fatal — account already created, don't block response
     }
- 
+
     return res.status(200).json({ success: true, msg: "Request approved successfully" });
- 
+
   } catch (error) {
     console.error("[ApproveRequest]", error);
     return res.status(500).json({ success: false, error: "Internal server error" });
   }
 };
+
+// const ApproveRequest = async (req, res) => {
+//   try {
+//     const { formValue, accountId } = req.body;
+//     const { username, email, password, server, platform } = formValue;
+//     const hashedPassword = encryptPassword(password);
+ 
+//     // ── Load account + package ────────────────────────────────────────────────
+//     const account = await Account.findOne({ _id: accountId }).populate("package");
+//     if (!account) return res.status(404).json({ error: "Account not found" });
+//     if (!account.toNextStep) return res.status(400).json({ error: "No pending upgrade request on this account" });
+ 
+//     const packageData = account.package;
+//     if (!packageData) return res.status(404).json({ error: "Package not found on account" });
+ 
+//     const user = await User.findById(account.userId);
+//     if (!user) return res.status(404).json({ error: "User not found" });
+ 
+//     // ── Get current TradingAccount to carry over live balance ─────────────────
+//     const currentTradingAccount = await TradingAccount.findOne({
+//       account: account._id,
+//       status:  "active",
+//     });
+ 
+//     // ── Helper: strip "%" and parse numeric strings from Package schema ────────
+//     const toNum = (v, fallback) => {
+//       const n = parseFloat(String(v ?? "").replace(/[^0-9.-]/g, ""));
+//       return isNaN(n) ? fallback : n;
+//     };
+ 
+//     // ── Resolve config for the new phase ─────────────────────────────────────
+//     let newPhase           = "";
+//     let newChallengeConfig = null;
+//     let minTradingDays     = 0;
+//     const newCredentials   = { email, username, password: hashedPassword, server, platform };
+ 
+//     if (account.nextStep === "Phase Two") {
+//       const p2       = packageData.evaluationStage.PhaseTwo;
+//       newPhase       = "Phase Two";
+//       minTradingDays = parseInt(account.MinimumTrading.PhaseTwo) || 0;
+//       newChallengeConfig = {
+//         maxDailyLoss:   toNum(p2.MaximumDailyLoss,   5),
+//         maxTotalLoss:   toNum(p2.MaximumLoss,        10),
+//         profitTarget:   toNum(p2.ProfitTarget,        5),
+//         minTradingDays: toNum(p2.MinimumTradingDays, 10),
+//         maxLotSize:     toNum(p2.MaxLotSize, 0),
+//       };
+ 
+//     } else if (account.nextStep === "Funded") {
+//       const funded   = packageData.fundedStage;
+//       newPhase       = "Funded";
+//       minTradingDays = parseInt(account.MinimumTrading.Funded) || 0;
+//       newChallengeConfig = {
+//         maxDailyLoss:   toNum(funded.MaximumDailyLoss,   5),
+//         maxTotalLoss:   toNum(funded.MaximumLoss,        10),
+//         profitTarget:   toNum(funded.ProfitTarget,        0),
+//         minTradingDays: toNum(funded.MinimumTradingDays, 10),
+//         maxLotSize:     toNum(p2.MaxLotSize, 5),
+//       };
+ 
+//     } else {
+//       return res.status(400).json({ error: `Invalid nextStep value: "${account.nextStep}"` });
+//     }
+ 
+//     // ── Close out old account ─────────────────────────────────────────────────
+//     // "Passed" = completed this phase successfully — valid enum value in schema
+//     account.nextStep   = "";
+//     account.toNextStep = false;
+//     account.status     = "Passed";  // ✅ valid enum: "Not Passed"|"Passed"|"Pending"|"Ongoing"|"Cancelled"
+//     await account.save();
+ 
+//     // ── Close out old TradingAccount ──────────────────────────────────────────
+//     if (currentTradingAccount) {
+//       currentTradingAccount.status = "completed";
+//       await currentTradingAccount.save();
+//     }
+ 
+//     // ── Build MinimumTradingDays for new account ───────────────────────────────
+//     // Spread previous dates (PhaseOne date carries over for reference),
+//     // then set the new phase's date. Strip _id from the subdoc toObject.
+//     const { _id: _omit, ...prevMinDays } = account.MinimumTradingDays?.toObject?.() ?? {};
+//     const minTradingDaysDate = new Date(Date.now() + minTradingDays * 86400000);
+ 
+//     // ── Create NEW Account doc for the new phase ──────────────────────────────
+//     // status = "Ongoing" — trader is now actively in the new phase
+//     // "Passed" only applies when they finish/exit, not when they enter
+//     const newAccount = await Account.create({
+//       userId:        account.userId,
+//       name:          account.name,
+//       mail:          account.mail,
+//       order:         account.order,
+//       package:       packageData._id,
+//       amountSize:    account.amountSize,
+//       platform,
+//       step:          account.step,
+//       paymentMethod: account.paymentMethod,
+//       accountName:   generateUniqueAccountName(),
+//       phase:         newPhase,
+//       status:        "Ongoing",   // ✅ enters new phase as Ongoing, NOT Passed
+//       approvedDate:  new Date(),
+//       MinimumTrading: account.MinimumTrading,
+//       MinimumTradingDays: {
+//         ...prevMinDays,
+//         ...(newPhase === "Phase Two" && { PhaseTwo: minTradingDaysDate }),
+//         ...(newPhase === "Funded"    && { Funded:   minTradingDaysDate }),
+//       },
+//       ...(newPhase === "Phase Two" && {
+//         PhaseTwoCredentials: newCredentials,
+//         toPhaseTwoOn:        new Date(),
+//       }),
+//       ...(newPhase === "Funded" && {
+//         FundedStageCredentials: newCredentials,
+//         toFundedOn:            new Date(), 
+//       }),
+//     });
+ 
+//     // ── Create NEW TradingAccount ─────────────────────────────────────────────
+//     await TradingAccount.create({
+//       userId:          account.userId,
+//       account:         newAccount._id,
+//       order:           account.order,
+//       login :          username,
+//       startingBalance: Number(account.amountSize),
+//       challengeConfig: newChallengeConfig,
+//       platform,
+//       status:          "pending",
+//     });
+ 
+//     // ── Notify user ───────────────────────────────────────────────────────────
+//     user.notifications.push(
+//       notification(
+//         "/dashboard",
+//         "good",
+//         `Your account "${account.accountName}" successfully advanced to ${newPhase}`
+//       )
+//     );
+//     user.notificationsCount += 1;
+//     await user.save();
+ 
+//     // ── Email ─────────────────────────────────────────────────────────────────
+//     const htmlContent = newPhase === "Funded"
+//       ? accountFunded(newAccount.accountName, account.name)
+//       : accountPhaseTwo(newAccount.accountName, account.name);
+ 
+//     const subject = newPhase === "Funded"
+//       ? "Passed to Funded Stage"
+//       : "Passed to Second Phase";
+ 
+//     try {
+//       await resend.emails.send({
+//         from: process.env.WEBSITE_MAIL,
+//         to:   user.email,
+//         subject,
+//         html: htmlContent,
+//       });
+//     } catch (emailError) {
+//       console.error("[ApproveRequest] email failed:", emailError.message);
+//       // Non-fatal — account already created, don't block response
+//     }
+ 
+//     return res.status(200).json({ success: true, msg: "Request approved successfully" });
+ 
+//   } catch (error) {
+//     console.error("[ApproveRequest]", error);
+//     return res.status(500).json({ success: false, error: "Internal server error" });
+//   }
+// };
 
 // const ApproveRequest = async (req, res) => {
 //   try {

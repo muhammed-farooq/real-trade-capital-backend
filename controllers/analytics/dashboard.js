@@ -1,9 +1,11 @@
 // controllers/dashboard/dashboardController.js
-const TradingAccount = require("../../models/dashboard/tradingAcc");
+const TradingAccount = require("../../models/dashboard/tradingAccount");
 const OpenTrade      = require("../../models/dashboard/openTrade");
 const TradeHistory   = require("../../models/dashboard/tradeHistory");
 const DailyGain      = require("../../models/dashboard/dailyGain");
 const DataDaily      = require("../../models/dashboard/dataDaily");
+const AccountWarning = require("../../models/dashboard/accountWarning");
+const { default: mongoose } = require("mongoose");
 
 /* ─────────────────────────────────────────────────────────────────
    GET /trading-acc/:id
@@ -14,7 +16,7 @@ const fetchTradingAcc = async (req, res) => {
 
     const tradingAccount = await TradingAccount.findOne({ account: id }).lean();
     if (!tradingAccount) {
-      return res.status(404).json({ success: false, message: "Trading account not found" });
+      return res.status(200).json({ success: false, message: "Trading account not found" });
     }
 
     // 3 indexed queries — that's the entire DB cost of this endpoint now
@@ -97,7 +99,7 @@ const fetchDailyGain = async (req, res) => {
 
     const tradingAccount = await TradingAccount.findOne({ account: id }, { _id: 1 }).lean();
     if (!tradingAccount) {
-      return res.status(404).json({ success: false, message: "Trading account not found" });
+      return res.status(200).json({ success: false, message: "Trading account not found" });
     }
 
     const rows = await DailyGain.find({ tradingAccount: tradingAccount._id })
@@ -120,7 +122,7 @@ const fetchDataDaily = async (req, res) => {
 
     const tradingAccount = await TradingAccount.findOne({ account: id }, { _id: 1 }).lean();
     if (!tradingAccount) {
-      return res.status(404).json({ success: false, message: "Trading account not found" });
+      return res.status(200).json({ success: false, message: "Trading account not found" });
     }
 
     const rows = await DataDaily.find({ tradingAccount: tradingAccount._id })
@@ -145,7 +147,7 @@ const fetchTradeHistory = async (req, res) => {
 
     const tradingAccount = await TradingAccount.findOne({ account: id }, { _id: 1 }).lean();
     if (!tradingAccount) {
-      return res.status(404).json({ success: false, message: "Trading account not found" });
+      return res.status(200).json({ success: false, message: "Trading account not found" });
     }
 
     const [trades, total] = await Promise.all([
@@ -164,4 +166,108 @@ const fetchTradeHistory = async (req, res) => {
   }
 };
 
-module.exports = { fetchTradingAcc, fetchDailyGain, fetchDataDaily, fetchTradeHistory };
+const getAccountWarnings = async (req, res) => {
+  try {
+    const { id } = req.params;
+ 
+    const tradingAccount = await TradingAccount.findOne({ account: id }, { _id: 1 }).lean();
+    if (!tradingAccount) {
+      return res.status(200).json({ success: false, message: "Trading account not found" });
+    }
+ 
+    const { severity, type, unacknowledged } = req.query;
+ 
+    const filter = { tradingAccount: tradingAccount._id };
+    if (severity)                  filter.severity     = severity;
+    if (type)                      filter.type         = type;
+    if (unacknowledged === "true") filter.acknowledged = false;
+ 
+    const [warnings, summaryArr] = await Promise.all([
+      AccountWarning
+        .find(filter)
+        .sort({ createdAt: -1 })
+        .select("-__v")
+        .lean(),
+ 
+      AccountWarning.aggregate([
+        { $match: { tradingAccount: tradingAccount._id } },
+        {
+          $group: {
+            _id:            null,
+            total:          { $sum: 1 },
+            breaches:       { $sum: { $cond: [{ $eq: ["$severity", "breach"]  }, 1, 0] } },
+            warnings:       { $sum: { $cond: [{ $eq: ["$severity", "warning"] }, 1, 0] } },
+            unacknowledged: { $sum: { $cond: [{ $eq: ["$acknowledged", false] }, 1, 0] } },
+          },
+        },
+      ]),
+    ]);
+ 
+    const summary = summaryArr[0] ?? { total: 0, breaches: 0, warnings: 0, unacknowledged: 0 };
+ 
+    return res.status(200).json({
+      success:       true,
+      accountStatus: tradingAccount.status,
+      summary,
+      warnings,
+    });
+ 
+  } catch (err) {
+    console.error("[getAccountWarnings]", err.message);
+    return res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+ 
+const acknowledgeWarnings = async (req, res) => {
+  try {
+    const { id } = req.params;
+ 
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid account id" });
+    }
+ 
+    let tradingAccount = await TradingAccount.findOne({ account: id }, { _id: 1 }).lean();
+    if (!tradingAccount) {
+      tradingAccount = await TradingAccount.findById(id, { _id: 1 }).lean();
+    }
+    if (!tradingAccount) {
+      return res.status(200).json({ success: false, message: "Trading account not found" });
+    }
+ 
+    const { warningIds, acknowledgeAll } = req.body;
+    let result;
+ 
+    if (acknowledgeAll) {
+      result = await AccountWarning.updateMany(
+        { tradingAccount: tradingAccount._id, acknowledged: false },
+        { $set: { acknowledged: true } }
+      );
+    } else {
+      if (!Array.isArray(warningIds) || !warningIds.length) {
+        return res.status(400).json({
+          success: false,
+          message: "Provide warningIds array or { acknowledgeAll: true }",
+        });
+      }
+      result = await AccountWarning.updateMany(
+        { _id: { $in: warningIds }, tradingAccount: tradingAccount._id },
+        { $set: { acknowledged: true } }
+      );
+    }
+ 
+    return res.status(200).json({ success: true, updated: result.modifiedCount });
+ 
+  } catch (err) {
+    console.error("[acknowledgeWarnings]", err.message);
+    return res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+module.exports = { 
+  fetchTradingAcc, 
+  fetchDailyGain, 
+  fetchDataDaily, 
+  fetchTradeHistory, 
+  getAccountWarnings,
+  acknowledgeWarnings
+};

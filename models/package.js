@@ -25,7 +25,11 @@ const PackageSchema = new mongoose.Schema({
       },
       Leverage: {
         type: String,
-        required: true,
+        default : "100"
+      },
+      MaxLotSize: {
+        type: String,
+        default : "0" //Unlimited
       },
     },
     PhaseTwo: {
@@ -51,7 +55,11 @@ const PackageSchema = new mongoose.Schema({
       },
       Leverage: {
         type: String,
-        required: true,
+        default : "100"
+      },
+      MaxLotSize: {
+        type: String,
+        default : "0" //Unlimited
       },
     },
   },
@@ -78,11 +86,15 @@ const PackageSchema = new mongoose.Schema({
     },
     Leverage: {
       type: String,
-      required: true,
+      default : "100"
     },
     PayoutsProfitSplit: {
       type: String,
       required: true,
+    },
+    MaxLotSize: {
+      type: String,
+       default : "5"  //Limited to 5 Max
     },
   },
 

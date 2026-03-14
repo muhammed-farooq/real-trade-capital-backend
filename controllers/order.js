@@ -17,7 +17,8 @@ const { nanoid } = require("nanoid");
 const onChainWallet = require("../models/chainWallet");
 const generateUniqueAccountName = () => `RTC-${nanoid(8).toUpperCase()}`;
 const resend = new Resend(process.env.RESEND_SECRET_KEY);
-const TradingAccount = require("../models/dashboard/tradingAcc")
+const TradingAccount = require("../models/dashboard/tradingAccount")
+const { createTradingAccount } = require("./tradingAccount");
 
 const { Web3 } = require('web3');
 const { ethers } = require("ethers");
@@ -183,15 +184,10 @@ const resolveWallet = async (payment, userId) => {
   throw new Error(`Unsupported payment method: ${payment}`);
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// controllers/orderController.js  —  placeOrder (updated)
-// Only the UPSERT TRADING ACCOUNT block is new; everything else is unchanged.
-// ─────────────────────────────────────────────────────────────────────────────
-
 const placeOrder = async (req, res) => {
   try {
     const { configureAccount, billingDetails, payment, user, package: packageId } = req.body;
-
+ 
     // ── VALIDATION ──────────────────────────────────────────────────────────
     const missing = [];
     if (!configureAccount) missing.push("configureAccount");
@@ -201,15 +197,15 @@ const placeOrder = async (req, res) => {
     if (!packageId)        missing.push("package");
     if (missing.length)
       return res.status(400).json({ errMsg: `Missing fields: ${missing.join(", ")}` });
-
+ 
     const { price, platform, accountType, accountSize, coupon, couponRedusedAmount } = configureAccount;
     if (!price || !platform || !accountType || !accountSize)
       return res.status(400).json({ errMsg: "Configuration account details are incomplete" });
-
+ 
     const { firstName, lastName, phone, mail, street, city, postalCode, dateOfBirth, title, country } = billingDetails;
     if (!firstName || !lastName || !phone || !mail || !street || !city || !postalCode || !dateOfBirth)
       return res.status(400).json({ errMsg: "Billing details are incomplete" });
-
+ 
     // ── LOOKUPS ──────────────────────────────────────────────────────────────
     const [userData, packageData] = await Promise.all([
       User.findById(user),
@@ -217,7 +213,7 @@ const placeOrder = async (req, res) => {
     ]);
     if (!userData)    return res.status(404).json({ errMsg: "User not found" });
     if (!packageData) return res.status(404).json({ errMsg: "Package not found" });
-
+ 
     // ── UPDATE USER PROFILE ──────────────────────────────────────────────────
     let userNeedsUpdate = false;
     if (!userData.address?.street || !userData.address?.city || !userData.address?.postalCode) {
@@ -227,14 +223,14 @@ const placeOrder = async (req, res) => {
     if (!userData.dateOfBirth) { userData.dateOfBirth = dateOfBirth; userNeedsUpdate = true; }
     if (!userData.phone)       { userData.phone = phone;             userNeedsUpdate = true; }
     if (userNeedsUpdate) await userData.save();
-
+ 
     // ── RESOLVE WALLET ────────────────────────────────────────────────────────
     const existingOrder = await Order.findOne({
       userId: user,
       orderStatus: "Pending",
       txnStatus: "Pending",
     });
-
+ 
     let walletAddress, walletPrivateKey;
     if (existingOrder && existingOrder.paymentMethod === payment) {
       walletAddress    = existingOrder.paymentAddress;
@@ -244,19 +240,19 @@ const placeOrder = async (req, res) => {
       walletAddress    = wallet.address;
       walletPrivateKey = wallet.privateKey;
     }
-
+ 
     // ── SHARED BILLING SNAPSHOT ───────────────────────────────────────────────
     const billingSnapshot = { title, postalCode, country, city, street, dateOfBirth };
-
+ 
     // ── COUPON FIELDS ─────────────────────────────────────────────────────────
     const couponFields = coupon
       ? { isCouponApplied: true,  couponRedusedAmount: Number(couponRedusedAmount), coupon }
       : { isCouponApplied: false, couponRedusedAmount: 0, coupon: null };
-
+ 
     // ── UPSERT ORDER ──────────────────────────────────────────────────────────
     const uniqueAccountName = generateUniqueAccountName();
     let order;
-
+ 
     if (existingOrder) {
       Object.assign(existingOrder, {
         orderStatus:    "Pending",
@@ -295,8 +291,8 @@ const placeOrder = async (req, res) => {
         ...couponFields,
       });
     }
-
-    // ── UPSERT ACCOUNT (existing) ─────────────────────────────────────────────
+ 
+    // ── UPSERT ACCOUNT ────────────────────────────────────────────────────────
     const MinimumTrading = {
       PhaseOne: packageData.evaluationStage.PhaseOne.MinimumTradingDays,
       Funded:   packageData.fundedStage.MinimumTradingDays,
@@ -304,7 +300,7 @@ const placeOrder = async (req, res) => {
         PhaseTwo: packageData.evaluationStage.PhaseTwo.MinimumTradingDays,
       }),
     };
-
+ 
     const accountPayload = {
       userId:        user,
       name:          `${firstName}${lastName}`,
@@ -319,77 +315,235 @@ const placeOrder = async (req, res) => {
       accountName:   order.accountName ?? uniqueAccountName,
       createdAt:     new Date(),
     };
-
+ 
     let account = await Account.findOne({
       status: "Pending",
       order:  order._id,
       userId: user,
     });
-
+ 
     if (account) {
       Object.assign(account, accountPayload);
       await account.save();
     } else {
       account = await Account.create(accountPayload);
     }
-
-    // ── UPSERT TRADING ACCOUNT ────────────────────────────────────────────────
-    // Pull challenge config from the package's PhaseOne evaluation rules.
-    // Package stores all values as strings (e.g. "5%", "10") — strip % and parse.
-    const phaseConfig = packageData.evaluationStage.PhaseOne;
-    const toNum = (v, fallback) => {
-      const n = parseFloat(String(v ?? "").replace(/[^0-9.-]/g, ""));
-      return isNaN(n) ? fallback : n;
-    };
-
-    const challengeConfig = {
-      maxDailyLoss:   toNum(phaseConfig.MaximumDailyLoss,  5),   // stored as "5%" → 5
-      maxTotalLoss:   toNum(phaseConfig.MaximumLoss,       10),  // stored as "10%" → 10
-      profitTarget:   toNum(phaseConfig.ProfitTarget,      10),  // stored as "10%" → 10
-      minTradingDays: toNum(phaseConfig.MinimumTradingDays, 10), // stored as "10"  → 10
-      maxLotSize:     5,  // not in Package schema — keep default or add to schema
-    };
-
-    const tradingAccountPayload = {
-      userId: user,
-      account : account._id,
-      startingBalance: Number(accountSize),   // e.g. 25000
-      challengeConfig,
-      status:          "pending",             // no MT login yet — awaiting payment
-      // myfxbookId / myfxbookSession are NOT set here.
-      // They are set later when the user connects their MyfxBook account.
-    };
-
-    const existingTradingAccount = await TradingAccount.findOne({
-      userId: user,
-      order:  order._id,        // tie it to this specific order
-    });
-
-    if (existingTradingAccount) {
-      // Re-placing / updating the order — refresh config in case package changed
-      Object.assign(existingTradingAccount, {
-        ...tradingAccountPayload,
-        updatedAt: new Date(),
-      });
-      await existingTradingAccount.save();
-    } else {
-      await TradingAccount.create({
-        ...tradingAccountPayload,
-        order: order._id,       // keep a reference back to the order
-      });
-    }
-    // ─────────────────────────────────────────────────────────────────────────
-
+ 
+    // NOTE: TradingAccount is NOT created here.
+    // It is created in ApproveOrder once the MT login is assigned.
+ 
     return res.status(201).json({
       orderId:        order._id,
       paymentAddress: walletAddress,
     });
-
+ 
   } catch (error) {
     console.error("[placeOrder]", error.message, error);
     return res.status(500).json({ errMsg: "Internal server error" });
   }
 };
+
+// const placeOrder = async (req, res) => {
+//   try {
+//     const { configureAccount, billingDetails, payment, user, package: packageId } = req.body;
+
+//     // ── VALIDATION ──────────────────────────────────────────────────────────
+//     const missing = [];
+//     if (!configureAccount) missing.push("configureAccount");
+//     if (!billingDetails)   missing.push("billingDetails");
+//     if (!payment)          missing.push("payment");
+//     if (!user)             missing.push("user");
+//     if (!packageId)        missing.push("package");
+//     if (missing.length)
+//       return res.status(400).json({ errMsg: `Missing fields: ${missing.join(", ")}` });
+
+//     const { price, platform, accountType, accountSize, coupon, couponRedusedAmount } = configureAccount;
+//     if (!price || !platform || !accountType || !accountSize)
+//       return res.status(400).json({ errMsg: "Configuration account details are incomplete" });
+
+//     const { firstName, lastName, phone, mail, street, city, postalCode, dateOfBirth, title, country } = billingDetails;
+//     if (!firstName || !lastName || !phone || !mail || !street || !city || !postalCode || !dateOfBirth)
+//       return res.status(400).json({ errMsg: "Billing details are incomplete" });
+
+//     // ── LOOKUPS ──────────────────────────────────────────────────────────────
+//     const [userData, packageData] = await Promise.all([
+//       User.findById(user),
+//       Package.findById(packageId),
+//     ]);
+//     if (!userData)    return res.status(404).json({ errMsg: "User not found" });
+//     if (!packageData) return res.status(404).json({ errMsg: "Package not found" });
+
+//     // ── UPDATE USER PROFILE ──────────────────────────────────────────────────
+//     let userNeedsUpdate = false;
+//     if (!userData.address?.street || !userData.address?.city || !userData.address?.postalCode) {
+//       userData.address = { postalCode, country, city, street };
+//       userNeedsUpdate = true;
+//     }
+//     if (!userData.dateOfBirth) { userData.dateOfBirth = dateOfBirth; userNeedsUpdate = true; }
+//     if (!userData.phone)       { userData.phone = phone;             userNeedsUpdate = true; }
+//     if (userNeedsUpdate) await userData.save();
+
+//     // ── RESOLVE WALLET ────────────────────────────────────────────────────────
+//     const existingOrder = await Order.findOne({
+//       userId: user,
+//       orderStatus: "Pending",
+//       txnStatus: "Pending",
+//     });
+
+//     let walletAddress, walletPrivateKey;
+//     if (existingOrder && existingOrder.paymentMethod === payment) {
+//       walletAddress    = existingOrder.paymentAddress;
+//       walletPrivateKey = existingOrder.privateKey;
+//     } else {
+//       const wallet     = await resolveWallet(payment, user);
+//       walletAddress    = wallet.address;
+//       walletPrivateKey = wallet.privateKey;
+//     }
+
+//     // ── SHARED BILLING SNAPSHOT ───────────────────────────────────────────────
+//     const billingSnapshot = { title, postalCode, country, city, street, dateOfBirth };
+
+//     // ── COUPON FIELDS ─────────────────────────────────────────────────────────
+//     const couponFields = coupon
+//       ? { isCouponApplied: true,  couponRedusedAmount: Number(couponRedusedAmount), coupon }
+//       : { isCouponApplied: false, couponRedusedAmount: 0, coupon: null };
+
+//     // ── UPSERT ORDER ──────────────────────────────────────────────────────────
+//     const uniqueAccountName = generateUniqueAccountName();
+//     let order;
+
+//     if (existingOrder) {
+//       Object.assign(existingOrder, {
+//         orderStatus:    "Pending",
+//         paymentMethod:  payment,
+//         paymentAddress: walletAddress,
+//         privateKey:     walletPrivateKey,
+//         price:          Number(price),
+//         platform,
+//         amountSize:     accountSize,
+//         step:           accountType,
+//         createdAt:      new Date(),
+//         orderCreatedAt: new Date(),
+//         billingDetails: billingSnapshot,
+//         ...couponFields,
+//       });
+//       await existingOrder.save();
+//       order = existingOrder;
+//     } else {
+//       order = await Order.create({
+//         name:           `${firstName}${lastName}`,
+//         userId:         user,
+//         package:        packageId,
+//         accountName:    uniqueAccountName,
+//         privateKey:     walletPrivateKey,
+//         paymentAddress: walletAddress,
+//         price:          Number(price),
+//         platform,
+//         step:           accountType,
+//         amountSize:     accountSize,
+//         paymentMethod:  payment,
+//         country,
+//         phone,
+//         mail,
+//         orderCancelledAt: new Date(),
+//         billingDetails: billingSnapshot,
+//         ...couponFields,
+//       });
+//     }
+
+//     // ── UPSERT ACCOUNT (existing) ─────────────────────────────────────────────
+//     const MinimumTrading = {
+//       PhaseOne: packageData.evaluationStage.PhaseOne.MinimumTradingDays,
+//       Funded:   packageData.fundedStage.MinimumTradingDays,
+//       ...(packageData.evaluationStage.PhaseTwo && {
+//         PhaseTwo: packageData.evaluationStage.PhaseTwo.MinimumTradingDays,
+//       }),
+//     };
+
+//     const accountPayload = {
+//       userId:        user,
+//       name:          `${firstName}${lastName}`,
+//       order:         order._id,
+//       package:       packageId,
+//       amountSize:    accountSize,
+//       platform,
+//       step:          accountType,
+//       mail,
+//       paymentMethod: payment,
+//       MinimumTrading,
+//       accountName:   order.accountName ?? uniqueAccountName,
+//       createdAt:     new Date(),
+//     };
+
+//     let account = await Account.findOne({
+//       status: "Pending",
+//       order:  order._id,
+//       userId: user,
+//     });
+
+//     if (account) {
+//       Object.assign(account, accountPayload);
+//       await account.save();
+//     } else {
+//       account = await Account.create(accountPayload);
+//     }
+
+//     // ── UPSERT TRADING ACCOUNT ────────────────────────────────────────────────
+//     // Pull challenge config from the package's PhaseOne evaluation rules.
+//     // Package stores all values as strings (e.g. "5%", "10") — strip % and parse.
+//     const phaseConfig = packageData.evaluationStage.PhaseOne;
+//     const toNum = (v, fallback) => {
+//       const n = parseFloat(String(v ?? "").replace(/[^0-9.-]/g, ""));
+//       return isNaN(n) ? fallback : n;
+//     };
+
+//     const challengeConfig = {
+//       maxDailyLoss:   toNum(phaseConfig.MaximumDailyLoss,  5),   // stored as "5%" → 5
+//       maxTotalLoss:   toNum(phaseConfig.MaximumLoss,       10),  // stored as "10%" → 10
+//       profitTarget:   toNum(phaseConfig.ProfitTarget,      10),  // stored as "10%" → 10
+//       minTradingDays: toNum(phaseConfig.MinimumTradingDays, 10), // stored as "10"  → 10
+//       maxLotSize:     toNum(phaseConfig.MaxLotSize, 0)  
+//     };
+
+//     const tradingAccountPayload = {
+//       userId: user,
+//       account : account._id,
+//       startingBalance: Number(accountSize),   // e.g. 25000
+//       challengeConfig,
+//       status:          "pending",             // no MT login yet — awaiting payment
+//     };
+
+//     const existingTradingAccount = await TradingAccount.findOne({
+//       userId: user,
+//       order:  order._id,        // tie it to this specific order
+//       account : account._id,
+//     });
+
+//     if (existingTradingAccount) {
+//       // Re-placing / updating the order — refresh config in case package changed
+//       Object.assign(existingTradingAccount, {
+//         ...tradingAccountPayload,
+//         updatedAt: new Date(),
+//       });
+//       await existingTradingAccount.save();
+//     } else {
+//       await TradingAccount.create({
+//         ...tradingAccountPayload,
+//         order: order._id,       // keep a reference back to the order
+//       });
+//     }
+//     // ─────────────────────────────────────────────────────────────────────────
+
+//     return res.status(201).json({
+//       orderId:        order._id,
+//       paymentAddress: walletAddress,
+//     });
+
+//   } catch (error) {
+//     console.error("[placeOrder]", error.message, error);
+//     return res.status(500).json({ errMsg: "Internal server error" });
+//   }
+// };
 
 // const generateUniqueAccountName = () => {
 //   return `RTC-${nanoid(8).toUpperCase()}`;
@@ -1010,29 +1164,24 @@ const cancelOrder = async (req, res) => {
 };
 
 const ApproveOrder = async (req, res) => {
-  console.log("ApproveOrder endpoint hit");
   try {
     const { formValue, orderId } = req.body;
-    console.log("Request body:", req.body);
-
     const { username, email, password, server, platform } = formValue;
+
     const hashedPassword = encryptPassword(password);
-    // const dateNow = Date;
+
+    // ── Fetch order & account ─────────────────────────────────────────────────
     const order = await Order.findById(orderId);
     if (!order) {
-      console.log(`Order not found for orderId: ${orderId}`);
       return res.status(404).json({ errMsg: "Order not found" });
     }
-    // console.log("Order found:", order);
 
     const account = await Account.findOne({ order: orderId });
     if (!account) {
-      console.log(`Account not found for orderId: ${orderId}`);
       return res.status(404).json({ errMsg: "Account not found" });
     }
-    // console.log("Account found:", account);
 
-    console.log(username, email, password, server, platform);
+    // ── Set Phase One credentials ─────────────────────────────────────────────
     account.PhaseOneCredentials = {
       email,
       username,
@@ -1040,22 +1189,30 @@ const ApproveOrder = async (req, res) => {
       server,
       platform,
     };
-    account.status = "Ongoing";
+    account.status       = "Ongoing";
     account.approvedDate = new Date();
 
-    // Populate MinimumTradingDays and MinimumTrading based on the package
+    // ── Calculate minimum trading end date ────────────────────────────────────
     const phaseOneMinTradingDays = parseInt(account.MinimumTrading.PhaseOne);
-    // const phaseTwoMinTradingDays = parseInt(account.MinimumTrading.PhaseTwo);
-    // const fundedMinTradingDays = parseInt(account.MinimumTrading.Funded);
-
-    // Calculate the minimum trading end date for Phase One
-    const currentDate = new Date();
+    const currentDate            = new Date();
     account.MinimumTradingDays.PhaseOne = new Date(
       currentDate.setDate(currentDate.getDate() + phaseOneMinTradingDays)
     );
 
     order.orderStatus = "Completed";
 
+    // ── Create TradingAccount now that we have an MT login ────────────────────
+    await createTradingAccount({
+      userId:      account.userId,
+      orderId:     order._id,
+      accountId:   account._id,
+      packageId:   order.package,
+      accountSize: order.amountSize,
+      login:       username,       // MT login assigned at approval
+      phase:       "PhaseOne",
+    });
+
+    // ── Fetch user for notifications / referral ───────────────────────────────
     const user = await User.findById(account.userId);
 
     if (user && !user.isPurchased) {
@@ -1071,35 +1228,26 @@ const ApproveOrder = async (req, res) => {
           !isNaN(order.price) &&
           !isNaN(referralUser.affiliate_share)
         ) {
-          // const orderPrice = order.couponRedusedAmount
-          //   ? order.price + order.couponRedusedAmount
-          //   : order.price;
-          const orderPrice = order.price;
-          const referralAmount =
-            (orderPrice * referralUser.affiliate_share) / 100;
-          referralUser.wallet += referralAmount;
-          referralUser.affiliate_earned =
-            (referralUser.affiliate_earned || 0) + referralAmount;
+          const referralAmount = (order.price * referralUser.affiliate_share) / 100;
+          referralUser.wallet          += referralAmount;
+          referralUser.affiliate_earned = (referralUser.affiliate_earned || 0) + referralAmount;
           referralUser.my_referrals.push({
-            user: user.email,
-            earned: referralAmount,
+            user:       user.email,
+            earned:     referralAmount,
             amountSize: Number(account.amountSize),
-            date: new Date(),
+            date:       new Date(),
           });
-          console.log(referralUser);
-
           await referralUser.save();
         } else {
-          console.log(
-            "Invalid referral calculation due to NaN values",
-            order?.price,
-            referralUser?.affiliate_share,
-            "thsis ",
-            (order?.price * referralUser?.affiliate_share) / 100
-          );
+          console.warn("[ApproveOrder] Invalid referral calculation — skipping payout", {
+            price:           order?.price,
+            affiliate_share: referralUser?.affiliate_share,
+          });
         }
       }
     }
+
+    // ── Notification + email ──────────────────────────────────────────────────
     user.notifications.push(
       notification(
         "/dashboard",
@@ -1107,38 +1255,167 @@ const ApproveOrder = async (req, res) => {
         `Your ${account.accountName} purchase ${order.orderStatus}`
       )
     );
+    user.notificationsCount += 1;
+
     const htmlContent = orderApprove(order.name);
-
-    if(username){
-      await TradingAccount.findOneAndUpdate({userId: user._id, order: orderId },{login : username, status : "active"})
-    }
-
     try {
       await resend.emails.send({
-        from: process.env.WEBSITE_MAIL,
-        to: user.email,
+        from:    process.env.WEBSITE_MAIL,
+        to:      user.email,
         subject: "Challenge Purchase Update",
-        html: htmlContent,
+        html:    htmlContent,
       });
-      console.log("Verification email sent successfully.");
     } catch (emailError) {
-      console.error("Error sending email:", emailError);
-      return res
-        .status(500)
-        .json({ errMsg: "Failed to send verification email." });
+      console.error("[ApproveOrder] Email send failed:", emailError);
+      // Don't abort the approval for a failed email — just log it
     }
-    user.notificationsCount += 1;
-    await account.save();
-    await order.save();
-    await user.save();
-    console.log("User status updated and saved:", user);
 
-    res.status(200).json({ success: true, msg: "Order approved successfully" });
+    // ── Persist all changes ───────────────────────────────────────────────────
+    await Promise.all([
+      account.save(),
+      order.save(),
+      user.save(),
+    ]);
+
+    return res.status(200).json({ success: true, msg: "Order approved successfully" });
+
   } catch (error) {
-    console.error("Error approving order:", error);
-    res.status(500).json({ success: false, errMsg: "Internal server error" });
+    console.error("[ApproveOrder]", error.message, error);
+    return res.status(500).json({ success: false, errMsg: "Internal server error" });
   }
 };
+
+
+// const ApproveOrder = async (req, res) => {
+//   console.log("ApproveOrder endpoint hit");
+//   try {
+//     const { formValue, orderId } = req.body;
+//     console.log("Request body:", req.body);
+
+//     const { username, email, password, server, platform } = formValue;
+//     const hashedPassword = encryptPassword(password);
+//     // const dateNow = Date;
+//     const order = await Order.findById(orderId);
+//     if (!order) {
+//       console.log(`Order not found for orderId: ${orderId}`);
+//       return res.status(404).json({ errMsg: "Order not found" });
+//     }
+//     // console.log("Order found:", order);
+
+//     const account = await Account.findOne({ order: orderId });
+//     if (!account) {
+//       console.log(`Account not found for orderId: ${orderId}`);
+//       return res.status(404).json({ errMsg: "Account not found" });
+//     }
+//     // console.log("Account found:", account);
+
+//     console.log(username, email, password, server, platform);
+//     account.PhaseOneCredentials = {
+//       email,
+//       username,
+//       password: hashedPassword,
+//       server,
+//       platform,
+//     };
+//     account.status = "Ongoing";
+//     account.approvedDate = new Date();
+
+//     // Populate MinimumTradingDays and MinimumTrading based on the package
+//     const phaseOneMinTradingDays = parseInt(account.MinimumTrading.PhaseOne);
+//     // const phaseTwoMinTradingDays = parseInt(account.MinimumTrading.PhaseTwo);
+//     // const fundedMinTradingDays = parseInt(account.MinimumTrading.Funded);
+
+//     // Calculate the minimum trading end date for Phase One
+//     const currentDate = new Date();
+//     account.MinimumTradingDays.PhaseOne = new Date(
+//       currentDate.setDate(currentDate.getDate() + phaseOneMinTradingDays)
+//     );
+
+//     order.orderStatus = "Completed";
+
+//     const user = await User.findById(account.userId);
+
+//     if (user && !user.isPurchased) {
+//       user.isPurchased = true;
+
+//       if (user.parent_affiliate) {
+//         const referralUser = await User.findOne({
+//           affiliate_id: user.parent_affiliate,
+//         });
+
+//         if (
+//           referralUser &&
+//           !isNaN(order.price) &&
+//           !isNaN(referralUser.affiliate_share)
+//         ) {
+//           // const orderPrice = order.couponRedusedAmount
+//           //   ? order.price + order.couponRedusedAmount
+//           //   : order.price;
+//           const orderPrice = order.price;
+//           const referralAmount =
+//             (orderPrice * referralUser.affiliate_share) / 100;
+//           referralUser.wallet += referralAmount;
+//           referralUser.affiliate_earned =
+//             (referralUser.affiliate_earned || 0) + referralAmount;
+//           referralUser.my_referrals.push({
+//             user: user.email,
+//             earned: referralAmount,
+//             amountSize: Number(account.amountSize),
+//             date: new Date(),
+//           });
+//           console.log(referralUser);
+
+//           await referralUser.save();
+//         } else {
+//           console.log(
+//             "Invalid referral calculation due to NaN values",
+//             order?.price,
+//             referralUser?.affiliate_share,
+//             "thsis ",
+//             (order?.price * referralUser?.affiliate_share) / 100
+//           );
+//         }
+//       }
+//     }
+//     user.notifications.push(
+//       notification(
+//         "/dashboard",
+//         "good",
+//         `Your ${account.accountName} purchase ${order.orderStatus}`
+//       )
+//     );
+//     const htmlContent = orderApprove(order.name);
+
+//     if(username){
+//       await TradingAccount.findOneAndUpdate({userId: user._id, order: orderId },{login : username, status : "active"})
+//     }
+
+//     try {
+//       await resend.emails.send({
+//         from: process.env.WEBSITE_MAIL,
+//         to: user.email,
+//         subject: "Challenge Purchase Update",
+//         html: htmlContent,
+//       });
+//       console.log("Verification email sent successfully.");
+//     } catch (emailError) {
+//       console.error("Error sending email:", emailError);
+//       return res
+//         .status(500)
+//         .json({ errMsg: "Failed to send verification email." });
+//     }
+//     user.notificationsCount += 1;
+//     await account.save();
+//     await order.save();
+//     await user.save();
+//     console.log("User status updated and saved:", user);
+
+//     res.status(200).json({ success: true, msg: "Order approved successfully" });
+//   } catch (error) {
+//     console.error("Error approving order:", error);
+//     res.status(500).json({ success: false, errMsg: "Internal server error" });
+//   }
+// };
 
 module.exports = {
   getOrderLists,
