@@ -1,6 +1,6 @@
 // jobs/utils/saveWarning.js
-const AccountWarning             = require("../../models/dashboard/accountWarning");
-const TradingAccount             = require("../../models/dashboard/tradingAccount");
+const AccountWarning             = require("../../../models/dashboard/accountWarning");
+const TradingAccount             = require("../../../models/dashboard/tradingAccount");
 const { breachAccount }          = require("./accountlifecycle");
 
 const ESCALATION_THRESHOLD = 3;

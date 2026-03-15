@@ -2,10 +2,10 @@
 
 const TradingAccount = require("../../../models/dashboard/tradingAccount");
 const Account        = require("../../../models/account");
-const User           = require("../../../models/users");
+const User           = require("../../../models/user");
 const { Resend }     = require("resend");
 const { breachEmail, passEmail } = require("../../../assets/html/account");
-const resend  = new Resend(process.env.RESEND_API_KEY);
+const resend  = new Resend(process.env.RESEND_SECRET_KEY);
 
 const clearCredentials = async (accountDoc) => {
   const blank = {  password: "" };
