@@ -56,6 +56,12 @@ const checkWeekendHold = async (account) => {
       snapshot:       { openTradeCount: openTrades.length, symbols, dataDate: dataDateStr, checkedAt: now.toISOString() },
       dedupKey:       `WEEKEND_HOLD:${dataDateStr}`,
     });
+
+    // Mark weekendHolding as violated on the TradingAccount rules subdoc
+    await TradingAccount.updateOne(
+      { _id: account._id },
+      { $set: { "rules.weekendHolding": "violated" } }
+    );
   } catch (err) {
     console.error(`[checkWeekendHold] account=${account._id}:`, err.message);
   }
@@ -193,6 +199,8 @@ const checkNewsTrading = async (account) => {
       ).lean(),
     ]);
 
+    let newsViolationDetected = false;
+
     for (const event of newsEvents) {
       const eventMs = event.timestamp;
 
@@ -213,6 +221,7 @@ const checkNewsTrading = async (account) => {
           snapshot:       { tradeSymbol: trade.symbol, openTime: trade.openTime, closeTime: trade.closeTime, newsTitle: event.title, newsCurrency: event.currency, newsTime: `${event.date} ${event.time} UTC` },
           dedupKey:       `NEWS:${event.date}:${event.time}:${trade.symbol}:${trade.openTime}`,
         });
+        newsViolationDetected = true;
       }
 
       for (const trade of openTrades) {
@@ -229,7 +238,15 @@ const checkNewsTrading = async (account) => {
           snapshot:       { tradeSymbol: trade.symbol, openTime: trade.openTime, newsTitle: event.title, newsCurrency: event.currency, newsTime: `${event.date} ${event.time} UTC` },
           dedupKey:       `NEWS:OPEN:${event.date}:${event.time}:${trade.symbol}:${trade.openTime}`,
         });
+        newsViolationDetected = true;
       }
+    }
+
+    if (newsViolationDetected) {
+      await TradingAccount.updateOne(
+        { _id: account._id },
+        { $set: { "rules.newsTrading": "violated" } }
+      );
     }
   } catch (err) {
     console.error(`[checkNewsTrading] account=${account._id}:`, err.message);

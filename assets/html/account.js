@@ -425,9 +425,187 @@ const accountFailed = (account, userName) =>
     </table>
   `);
 
+const breachEmail = ({ userName, accountName, reason }) =>
+  emailTemplate(`
+    <table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+      <tbody>
+        <tr>
+          <td align="center" style="padding-top:40px;">
+            ${badge("Challenge Breach Notice", "#e74c3c")}
+          </td>
+        </tr>
+        <tr>
+          <td align="center" style="padding-top:24px;padding-bottom:4px;">
+            <h1 style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:36px;font-weight:700;color:#ffffff;letter-spacing:-1px;line-height:1.2;">Challenge<br/><span style="color:#e74c3c;">Failed.</span></h1>
+          </td>
+        </tr>
+        <tr>
+          <td align="center" style="padding-top:20px;">
+            <p style="margin:0;font-family:'Courier New',Courier,monospace;font-size:14px;color:#888;letter-spacing:1px;">Hi, <strong style="color:#ccc;">${userName}</strong></p>
+          </td>
+        </tr>
+
+        ${divider()}
+
+        <tr>
+          <td style="padding-bottom:16px;">
+            <p style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:16px;color:#aaa;line-height:28px;">
+              Your account <strong style="color:#fff;font-family:'Courier New',Courier,monospace;">${accountName}</strong> has been closed due to a trading rule violation.
+            </p>
+          </td>
+        </tr>
+
+        <!-- Breach reason card -->
+        <tr>
+          <td style="padding-top:24px;">
+            <table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;border:1px solid #3a0a0a;border-radius:8px;overflow:hidden;">
+              <tbody>
+                <tr>
+                  <td style="background:#150505;padding:14px 20px;border-bottom:1px solid #2a0a0a;">
+                    <span style="font-family:'Courier New',Courier,monospace;font-size:11px;color:#e74c3c;letter-spacing:3px;text-transform:uppercase;">&#9888; Breach Reason</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:14px 20px;">
+                    <p style="margin:0;font-family:'Courier New',Courier,monospace;font-size:13px;color:#aaa;line-height:1.6;">${reason}</p>
+                  </td>
+                </tr>
+                ${statRow("Account", accountName)}
+                ${statRow("Status", "&#9888; Breached")}
+              </tbody>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Next steps card -->
+        <tr>
+          <td style="padding-top:24px;">
+            <table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;background:#0d0505;border:1px solid #2a0a0a;border-radius:8px;">
+              <tbody>
+                <tr>
+                  <td style="padding:20px;">
+                    <p style="margin:0 0 10px;font-family:'Courier New',Courier,monospace;font-size:11px;color:#e74c3c;letter-spacing:2px;text-transform:uppercase;">Next Steps</p>
+                    <p style="margin:0;font-family:'Courier New',Courier,monospace;font-size:12px;color:#888;letter-spacing:1px;line-height:24px;">
+                      &#8594; Your credentials have been revoked<br/>
+                      &#8594; All open positions have been noted<br/>
+                      &#8594; You may start a new challenge at any time<br/>
+                      &#8594; Contact support if you believe this was an error
+                    </p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </td>
+        </tr>
+
+        <tr>
+          <td align="center" style="padding-top:32px;">
+            ${dashboardButton(`${process.env.API_URL}/dashboard`)}
+          </td>
+        </tr>
+
+        <tr>
+          <td align="center" style="padding-top:24px;">
+            <p style="margin:0;font-family:'Courier New',Courier,monospace;font-size:11px;color:#444;letter-spacing:2px;text-transform:uppercase;">Every setback is a setup for a comeback.</p>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  `);
+
+const passEmail = ({ userName, accountName, nextPhase }) =>
+  emailTemplate(`
+    <table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+      <tbody>
+        <tr>
+          <td align="center" style="padding-top:40px;">
+            ${badge("Challenge Passed", "#10b981")}
+          </td>
+        </tr>
+        <tr>
+          <td align="center" style="padding-top:24px;padding-bottom:4px;">
+            <h1 style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:36px;font-weight:700;color:#ffffff;letter-spacing:-1px;line-height:1.2;">Congratulations<br/><span style="color:#10b981;">You Passed.</span></h1>
+          </td>
+        </tr>
+        <tr>
+          <td align="center" style="padding-top:20px;">
+            <p style="margin:0;font-family:'Courier New',Courier,monospace;font-size:14px;color:#888;letter-spacing:1px;">Hi, <strong style="color:#ccc;">${userName}</strong></p>
+          </td>
+        </tr>
+
+        ${divider()}
+
+        <tr>
+          <td style="padding-bottom:16px;">
+            <p style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:16px;color:#aaa;line-height:28px;">
+              Your account <strong style="color:#fff;font-family:'Courier New',Courier,monospace;">${accountName}</strong> has successfully completed this phase.
+              ${nextPhase
+                ? `You are now ready to advance to <strong style="color:#10b981;">${nextPhase}</strong>.`
+                : "Our team will be in touch shortly regarding your payout."
+              }
+            </p>
+          </td>
+        </tr>
+
+        <!-- Status card -->
+        <tr>
+          <td style="padding-top:24px;">
+            <table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;border:1px solid #0a2a1a;border-radius:8px;overflow:hidden;">
+              <tbody>
+                <tr>
+                  <td style="background:#050d0a;padding:14px 20px;border-bottom:1px solid #0a2a1a;">
+                    <span style="font-family:'Courier New',Courier,monospace;font-size:11px;color:#10b981;letter-spacing:3px;text-transform:uppercase;">&#10003; Challenge Report</span>
+                  </td>
+                </tr>
+                ${statRow("Account", accountName)}
+                ${statRow("Status", "&#10003; Passed")}
+                ${nextPhase ? statRow("Next Phase", nextPhase) : statRow("Next Step", "Payout Request")}
+              </tbody>
+            </table>
+          </td>
+        </tr>
+
+        <!-- What happens next card -->
+        <tr>
+          <td style="padding-top:24px;">
+            <table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;background:#050d0a;border:1px solid #0a2a1a;border-radius:8px;">
+              <tbody>
+                <tr>
+                  <td style="padding:20px;">
+                    <p style="margin:0 0 10px;font-family:'Courier New',Courier,monospace;font-size:11px;color:#10b981;letter-spacing:2px;text-transform:uppercase;">What Happens Next</p>
+                    <p style="margin:0;font-family:'Courier New',Courier,monospace;font-size:12px;color:#888;letter-spacing:1px;line-height:24px;">
+                      &#8594; Log in and review your dashboard<br/>
+                      &#8594; ${nextPhase ? `Request advancement to ${nextPhase}` : "Submit your payout request"}<br/>
+                      &#8594; Our team will review and approve within 24&#8211;48h
+                    </p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </td>
+        </tr>
+
+        <tr>
+          <td align="center" style="padding-top:32px;">
+            ${dashboardButton(`${process.env.API_URL}/dashboard`)}
+          </td>
+        </tr>
+
+        <tr>
+          <td align="center" style="padding-top:24px;">
+            <p style="margin:0;font-family:'Courier New',Courier,monospace;font-size:11px;color:#444;letter-spacing:2px;text-transform:uppercase;">Keep up the great work — the funded stage awaits.</p>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  `);
+
 module.exports = {
   toNext,
   accountPhaseTwo,
   accountFunded,
   accountFailed,
+
+  breachEmail,
+  passEmail
 };
