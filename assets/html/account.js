@@ -1,55 +1,4 @@
-const { emailTemplate } = require("./emailTemplates");
-
-const badge = (label, color = "#e74c3c") => `
-  <table cellspacing="0" cellpadding="0" style="border-collapse:collapse;display:inline-table;">
-    <tbody>
-      <tr>
-        <td style="padding:5px 14px;background:${color}18;border:1px solid ${color}44;border-radius:20px;">
-          <span style="font-family:'Courier New',Courier,monospace;font-size:11px;color:${color};letter-spacing:2px;text-transform:uppercase;font-weight:600;">${label}</span>
-        </td>
-      </tr>
-    </tbody>
-  </table>
-`;
- 
-const dashboardButton = (url) => `
-  <table cellspacing="0" cellpadding="0" align="center" style="border-collapse:collapse;margin-top:32px;">
-    <tbody>
-      <tr>
-        <td align="center">
-          <a href="${url}" target="_blank" style="display:inline-block;background:linear-gradient(135deg,#c0392b,#e74c3c);color:#fff;font-family:'Courier New',Courier,monospace;font-size:13px;font-weight:700;letter-spacing:3px;text-transform:uppercase;text-decoration:none;padding:16px 40px;border-radius:4px;border:none;">
-            Access Dashboard →
-          </a>
-        </td>
-      </tr>
-    </tbody>
-  </table>
-`;
- 
-const divider = () => `
-  <table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin:32px 0;">
-    <tbody>
-      <tr>
-        <td style="height:1px;background:linear-gradient(90deg,transparent,#2a2a2a,transparent);"></td>
-      </tr>
-    </tbody>
-  </table>
-`;
- 
-const statRow = (label, value) => `
-  <tr>
-    <td style="padding:12px 16px;border-bottom:1px solid #1a1a1a;">
-      <table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
-        <tbody>
-          <tr>
-            <td style="font-family:'Courier New',Courier,monospace;font-size:11px;color:#555;letter-spacing:2px;text-transform:uppercase;">${label}</td>
-            <td align="right" style="font-family:'Courier New',Courier,monospace;font-size:13px;color:#e0e0e0;font-weight:600;">${value}</td>
-          </tr>
-        </tbody>
-      </table>
-    </td>
-  </tr>
-`;
+const { emailTemplate ,badge, dashboardButton, divider, statRow } = require("./emailTemplates");
  
 const toNext = (account) =>
   emailTemplate(`
@@ -109,7 +58,6 @@ const toNext = (account) =>
   `);
  
 /* ─── ACCOUNT PHASE TWO ──────────────────────────────────── */
- 
 const accountPhaseTwo = (account, userName) =>
   emailTemplate(`
     <table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
@@ -211,7 +159,6 @@ const accountPhaseTwo = (account, userName) =>
   `);
  
 /* ─── ACCOUNT FUNDED ─────────────────────────────────────── */
- 
 const accountFunded = (account, userName) =>
   emailTemplate(`
     <table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
@@ -333,7 +280,6 @@ const accountFunded = (account, userName) =>
   `);
  
 /* ─── ACCOUNT FAILED ─────────────────────────────────────── */
- 
 const accountFailed = (account, userName) =>
   emailTemplate(`
     <table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
@@ -425,6 +371,7 @@ const accountFailed = (account, userName) =>
     </table>
   `);
 
+/* ─── ACCOUNT BREACHED ─────────────────────────────────────── */
 const breachEmail = ({ userName, accountName, reason }) =>
   emailTemplate(`
     <table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
@@ -513,6 +460,7 @@ const breachEmail = ({ userName, accountName, reason }) =>
     </table>
   `);
 
+/* ─── ACCOUNT PASSED ─────────────────────────────────────── */
 const passEmail = ({ userName, accountName, nextPhase }) =>
   emailTemplate(`
     <table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
@@ -605,7 +553,6 @@ module.exports = {
   accountPhaseTwo,
   accountFunded,
   accountFailed,
-
   breachEmail,
   passEmail
 };
