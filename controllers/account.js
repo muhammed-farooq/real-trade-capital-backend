@@ -55,9 +55,13 @@ const toNextStage = async (req, res) => {
     if (!account)
       return res.status(404).json({ errMsg: "Account not found." });
  
-    // Must be actively trading to request upgrade
-    if (account.status !== "Ongoing")
-      return res.status(400).json({ errMsg: `Account status is ${account.status}. Only Ongoing accounts can request a phase upgrade.` });
+    if (account.status !== "Ongoing") {
+      if (!(account.status === "Passed" && !account.toNextStep)) {
+        return res.status(400).json({
+          errMsg: `Account status is ${account.status}. Only Ongoing accounts can request a phase upgrade.`,
+        });
+      }
+    }
  
     // Already requested — prevent duplicates
     if (account.toNextStep)
@@ -158,7 +162,7 @@ const ApproveRequest = async (req, res) => {
 
     // ── Close out existing account & TradingAccount ───────────────────────────
     account.nextStep   = "";
-    account.toNextStep = false;
+    // account.toNextStep = false;
     account.status     = "Passed";
     await account.save();
 
