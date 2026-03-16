@@ -87,8 +87,8 @@ const passAccount = async (tradingAccountId, nextPhase) => {
         $set: {
           status:     "Passed",
           passedOn:   new Date(),
-          toNextStep: true,
-          nextStep:   nextPhase ?? "",
+          // toNextStep: true,
+          // nextStep:   nextPhase ?? "",
         },
       },
       { new: true }

@@ -488,8 +488,8 @@ const passEmail = ({ userName, accountName, nextPhase }) =>
             <p style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:16px;color:#aaa;line-height:28px;">
               Your account <strong style="color:#fff;font-family:'Courier New',Courier,monospace;">${accountName}</strong> has successfully completed this phase.
               ${nextPhase
-                ? `You are now ready to advance to <strong style="color:#10b981;">${nextPhase}</strong>.`
-                : "Our team will be in touch shortly regarding your payout."
+                ? `You are now eligible to advance to <strong style="color:#10b981;">${nextPhase}</strong>. To proceed, head to your dashboard and <strong style="color:#fff;">manually submit your advancement request</strong>.`
+                : `To receive your payout, head to your dashboard and <strong style="color:#fff;">manually submit a payout request</strong>. Our team will review and process it shortly.`
               }
             </p>
           </td>
@@ -508,6 +508,7 @@ const passEmail = ({ userName, accountName, nextPhase }) =>
                 ${statRow("Account", accountName)}
                 ${statRow("Status", "&#10003; Passed")}
                 ${nextPhase ? statRow("Next Phase", nextPhase) : statRow("Next Step", "Payout Request")}
+                ${statRow("Action Required", "Manual Request via Dashboard")} 
               </tbody>
             </table>
           </td>
@@ -522,8 +523,8 @@ const passEmail = ({ userName, accountName, nextPhase }) =>
                   <td style="padding:20px;">
                     <p style="margin:0 0 10px;font-family:'Courier New',Courier,monospace;font-size:11px;color:#10b981;letter-spacing:2px;text-transform:uppercase;">What Happens Next</p>
                     <p style="margin:0;font-family:'Courier New',Courier,monospace;font-size:12px;color:#888;letter-spacing:1px;line-height:24px;">
-                      &#8594; Log in and review your dashboard<br/>
-                      &#8594; ${nextPhase ? `Request advancement to ${nextPhase}` : "Submit your payout request"}<br/>
+                      &#8594; Log in to your dashboard<br/>
+                      &#8594; <strong style="color:#fff;">${nextPhase ? `Click "Request Advancement" to move to ${nextPhase}` : `Click "Request Payout" to submit your payout`}</strong><br/>
                       &#8594; Our team will review and approve within 24&#8211;48h
                     </p>
                   </td>
@@ -541,13 +542,13 @@ const passEmail = ({ userName, accountName, nextPhase }) =>
 
         <tr>
           <td align="center" style="padding-top:24px;">
-            <p style="margin:0;font-family:'Courier New',Courier,monospace;font-size:11px;color:#444;letter-spacing:2px;text-transform:uppercase;">Keep up the great work — the funded stage awaits.</p>
+            <p style="margin:0;font-family:'Courier New',Courier,monospace;font-size:11px;color:#444;letter-spacing:2px;text-transform:uppercase;">Your next step is one click away — don't forget to request it.</p>
           </td>
         </tr>
       </tbody>
     </table>
   `);
-
+  
 module.exports = {
   toNext,
   accountPhaseTwo,

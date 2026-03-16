@@ -4,6 +4,7 @@ const TradeHistory   = require("../../../models/dashboard/tradeHistory");
 const TradingAccount = require("../../../models/dashboard/tradingAccount");
 const { saveWarning }                    = require("../utils/saveWarning");
 const { fetchHighImpactNews, warmCache } = require("../utils/fetchHighImpactNews");
+const { passAccount } = require("../utils/accountlifecycle");
 
 const todayStr = () => new Date().toISOString().split("T")[0];
 
@@ -327,6 +328,60 @@ const checkBalanceBreach = async (account) => {
   }
 };
 
+const checkChallengePass = async (account) => {
+  try {
+    const cfg = account.challengeConfig ?? {};
+
+    const profitTarget = cfg.profitTarget  ?? 10;
+    const minDays      = cfg.minTradingDays ?? 0;
+
+    const startBal = account.startingBalance ?? 0;
+    const balance  = account.balance         ?? 0;
+
+    if (!startBal || !balance) return;
+
+    // ── (a) Already passed/completed? ────────────────────────────────────────
+    if (account.status === "passed" || account.status === "completed") return;
+
+    // ── (b) No open trades ───────────────────────────────────────────────────
+    const openCount = await OpenTrade.countDocuments({
+      tradingAccount: account._id,
+      isPending:      false,
+    });
+    if (openCount > 0) return;
+
+    // ── (c) Profit target reached ────────────────────────────────────────────
+    const targetBalance = parseFloat(
+      (startBal * (1 + profitTarget / 100)).toFixed(2)
+    );
+    if (balance < targetBalance) return;
+
+    // ── (d) Minimum trading days ─────────────────────────────────────────────
+    if (minDays > 0) {
+      const trades = await TradeHistory.find(
+        { tradingAccount: account._id },
+        { closeTime: 1 }
+      ).lean();
+
+      const daySet = new Set(
+        trades
+          .map((t) => parseMfxDate(t.closeTime))
+          .filter(Boolean)
+          .map((d) => d.toISOString().split("T")[0])
+      );
+
+      if (daySet.size < minDays) return;
+    }
+
+    // ── All conditions met → pass the account ────────────────────────────────
+    const nextPhase = account.challengeConfig?.nextPhase ?? null;
+    await passAccount(account._id, nextPhase);
+
+  } catch (err) {
+    console.error(`[checkChallengePass] account=${account._id}:`, err.message);
+  }
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // runAllChecks — single account
 // ─────────────────────────────────────────────────────────────────────────────
@@ -337,12 +392,16 @@ const runAllChecks = async (account) => {
   }
 
   await Promise.allSettled([
+    //Breaching checks--------
     checkWeekendHold(account),
     checkDailyDrawdown(account),
     checkMaxDrawdown(account),
     checkNewsTrading(account),
     checkLotSize(account),
     checkBalanceBreach(account),
+
+    //Passing checks----------
+    checkChallengePass(account)
   ]);
 };
 
