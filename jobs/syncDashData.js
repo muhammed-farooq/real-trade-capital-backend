@@ -26,16 +26,13 @@ const rulesJob = async () => {
   }
 };
 
-const run = async () => {
-  console.log("[cron] scheduler started");
-
-  await syncJob();
-  await rulesJob();
-
-  cron.schedule("*/15 * * * *", syncJob);
-  cron.schedule("*/10 * * * *", rulesJob);
-
-  console.log("[cron] jobs scheduled — sync every 15 min, rules every 10 min");
+const combinedJob = async () => {
+  try {
+    await syncJob();
+    await rulesJob();
+  } catch (err) {
+    console.error("[cron-combined] error:", err.message);
+  }
 };
 
-run();
+cron.schedule("*/14 * * * *", combinedJob);

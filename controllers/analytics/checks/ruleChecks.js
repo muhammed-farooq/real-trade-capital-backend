@@ -386,23 +386,19 @@ const checkChallengePass = async (account) => {
 // runAllChecks — single account
 // ─────────────────────────────────────────────────────────────────────────────
 const runAllChecks = async (account) => {
-  if (await isAccountFailed(account._id)) {
-    console.log(`[runAllChecks] skip ${account._id} — already failed/completed`);
-    return;
-  }
+  if (await isAccountFailed(account._id)) return;
 
-  await Promise.allSettled([
-    //Breaching checks--------
-    checkWeekendHold(account),
-    checkDailyDrawdown(account),
-    checkMaxDrawdown(account),
-    checkNewsTrading(account),
-    checkLotSize(account),
-    checkBalanceBreach(account),
+  // Run sequentially for safety
+  await checkWeekendHold(account);
+  await checkDailyDrawdown(account);
+  await checkMaxDrawdown(account);
+  await checkNewsTrading(account);
+  await checkLotSize(account);
+  await checkBalanceBreach(account);
 
-    //Passing checks----------
-    checkChallengePass(account)
-  ]);
+  if (await isAccountFailed(account._id)) return;
+
+  await checkChallengePass(account);
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
