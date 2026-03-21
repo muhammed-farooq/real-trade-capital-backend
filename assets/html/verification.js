@@ -62,7 +62,7 @@ const verification = (verificationLink, userName) =>
         </tr>
         <tr>
           <td align="center" style="padding-top:24px;padding-bottom:4px;">
-            <h1 style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:38px;font-weight:700;color:#ffffff;letter-spacing:-1px;line-height:1.1;">Confirm Your<br/><span style="color:#6366f1;">Identity.</span></h1>
+            <h1 style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:38px;font-weight:700;color:#ffffff;letter-spacing:-1px;line-height:1.1;">Confirm Your<br/><span style="color:#6366f1;">Email.</span></h1>
           </td>
         </tr>
         <tr>
@@ -76,14 +76,14 @@ const verification = (verificationLink, userName) =>
         <tr>
           <td style="padding-bottom:16px;">
             <p style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:16px;color:#aaa;line-height:28px;">
-              Thank you for signing up with <strong style="color:#fff;">Real Trade Capital</strong>. To activate your account and begin your trading journey, please verify your email address.
+              Thank you for creating your <strong style="color:#fff;">Real Trade Capital</strong> account. Please confirm your email address to complete your registration.
             </p>
           </td>
         </tr>
         <tr>
           <td>
             <p style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:16px;color:#aaa;line-height:28px;">
-              Click the button below — this link is unique to your account and expires shortly.
+              Click the button below to confirm. This link will expire in 24 hours.
             </p>
           </td>
         </tr>
@@ -97,9 +97,9 @@ const verification = (verificationLink, userName) =>
                   <td style="padding:20px;">
                     <p style="margin:0 0 10px;font-family:'Courier New',Courier,monospace;font-size:11px;color:#6366f1;letter-spacing:2px;text-transform:uppercase;">Security Notice</p>
                     <p style="margin:0;font-family:'Courier New',Courier,monospace;font-size:12px;color:#888;letter-spacing:1px;line-height:24px;">
-                      → This link is single-use and time-limited<br/>
-                      → Never share this link with anyone<br/>
-                      → If you did not create this account, ignore this email
+                      → This link expires in 24 hours<br/>
+                      → Do not share this email with others<br/>
+                      → If you did not sign up, you can safely ignore this
                     </p>
                   </td>
                 </tr>
@@ -110,7 +110,7 @@ const verification = (verificationLink, userName) =>
 
         <tr>
           <td align="center">
-            ${ctaButton(verificationLink, "Verify Email", "#6366f1")}
+            ${ctaButton(verificationLink, "Confirm Email", "#6366f1")}
           </td>
         </tr>
 
