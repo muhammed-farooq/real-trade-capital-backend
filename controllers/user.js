@@ -14,11 +14,12 @@ const signupSchema = Joi.object({
   email: Joi.string().email().required(),
   password: Joi.string().min(8).required(), // Ensuring password has at least 8 characters
   referralCode: Joi.string().allow("").optional(),
+  countryName: Joi.string().allow("").optional(),
 });
 
 const signup = async (req, res) => {
   try {
-    const { firstName, lastName, email, password, referralCode } = req.body;
+    const { firstName, lastName, email, password, referralCode, countryName } = req.body;
 
     // Validate the incoming request body against the schema
     const { error } = signupSchema.validate({
@@ -27,6 +28,7 @@ const signup = async (req, res) => {
       email,
       password,
       referralCode,
+      countryName
     });
 
     if (error) {
@@ -60,6 +62,7 @@ const signup = async (req, res) => {
       affiliate_id: referralNumber,
       parent_affiliate: referralCode || "",
       is_affiliate: !!referralCode,
+      country: countryName || ""
     });
 
     // Send verification email after user is created
@@ -108,12 +111,12 @@ const login = async (req, res) => {
       user.password
     );
 
-    console.log("Password Check Result:", passwordCheck);
-    console.log("Provided Password:", password);
-    console.log(
-      "Combined Password + Salt:",
-      password + process.env.PASSWORD_SALT
-    );
+    // console.log("Password Check Result:", passwordCheck);
+    // console.log("Provided Password:", password);
+    // console.log(
+    //   "Combined Password + Salt:",
+    //   password + process.env.PASSWORD_SALT
+    // );
 
     if (!passwordCheck) {
       return res.status(401).json({ errMsg: "Password doesn't match" });
