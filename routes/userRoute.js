@@ -32,6 +32,10 @@ const { getAllWithdrawals } = require("../controllers/withdrawal");
 const {
   generatePayoutCertificate,
   generateAccountCertificate,
+  getCertificates,
+  downloadCertificate,
+  previewCertificate,
+  verifyCertificate
 } = require("../controllers/certificate");
 const { useCoupon } = require("../controllers/coupon");
 const { fetchCalendar } = require("../controllers/calendar");
@@ -71,24 +75,18 @@ userRouter
 userRouter.route("/next-stage").post(verifyTokenUser, toNextStage);
 
 userRouter.route("/payout/:id").get(verifyTokenUser, getPayoutRequestOfUser);
-userRouter.get(
-  "/payout-account/:id",
-  verifyTokenUser,
-  getAccountInPayoutRequest
-);
+userRouter.get( "/payout-account/:id", verifyTokenUser, getAccountInPayoutRequest);
+
 userRouter.post("/payout-account", verifyTokenUser, PayoutRequest);
 userRouter.post("/payout-affiliate", verifyTokenUser, affiliatePayoutRequest);
 userRouter.get("/payout-user", verifyTokenUser, singleUserData);
-userRouter.get(
-  "/payout-certificate/:id",
-  verifyTokenUser,
-  generatePayoutCertificate
-);
-userRouter.get(
-  "/account-certificate/:id",
-  verifyTokenUser,
-  generateAccountCertificate
-);
+
+userRouter.get( "/payout-certificate/:id", verifyTokenUser, generatePayoutCertificate );
+
+userRouter.get('/certificate/verify/:accountName', verifyCertificate );
+userRouter.get("/certificate/:accountId/preview",verifyTokenUser,previewCertificate );
+userRouter.get("/certificate/:accountId",verifyTokenUser,downloadCertificate );
+userRouter.get("/certificates/:id",verifyTokenUser,getCertificates );
 
 userRouter.get("/withdrawal", verifyTokenUser, getAllWithdrawals);
 

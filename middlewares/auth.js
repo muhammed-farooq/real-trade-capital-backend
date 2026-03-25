@@ -6,7 +6,7 @@ const generateToken = (id, role) => {
   const token = jwt.sign(
     { id, role },
     process.env.TOKEN_SECRET,
-    { expiresIn: "4d" } // Token will expire in 1 day
+    { expiresIn: "1d" } // Token will expire in 1 day
   );
   return token;
 };
@@ -39,8 +39,6 @@ const verifyTokenAdmin = async (req, res, next) => {
   }
 };
 
-// The verifyTokenUser function will have a similar structure
-
 const verifyTokenUser = async (req, res, next) => {
   try {
     let token = req.headers["authorization"];
@@ -53,15 +51,14 @@ const verifyTokenUser = async (req, res, next) => {
       token = token.slice(7, token.length).trimLeft();
     }
     const verified = jwt.verify(token, process.env.TOKEN_SECRET);
-    // console.log(verified, "verified");
 
     req.payload = verified;
     const user = await User.findById(req.payload.id);
     if (user.isBanned === true) {
       console.error("user.isBanned === true:");
-
       return res.status(403).json({ errMsg: "you are banned", timeout: true });
     } else if (req.payload.role === "user") {
+      req.user = user
       next();
     } else {
       return res.status(403).json({ errMsg: "Access Denied", timeout: true });
