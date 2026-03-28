@@ -9,18 +9,14 @@ const {
   NotificationCount,
 } = require("../controllers/user");
 const { verifyTokenUser } = require("../middlewares/auth");
-
 const {
   getOrderLists,
   getOrderData,
   placeOrder,
   paymentCheck,
 } = require("../controllers/order");
-
 const { packages } = require("../controllers/package");
-
 const { getAccountLists, toNextStage } = require("../controllers/account");
-
 const {
   getPayoutRequestOfUser,
   getAccountInPayoutRequest,
@@ -35,7 +31,8 @@ const {
   getCertificates,
   downloadCertificate,
   previewCertificate,
-  verifyCertificate
+  verifyAccountCertificate,
+  verifyPayoutCertificate
 } = require("../controllers/certificate");
 const { useCoupon } = require("../controllers/coupon");
 const { fetchCalendar } = require("../controllers/calendar");
@@ -47,7 +44,6 @@ const {
   getAccountWarnings,
   acknowledgeWarnings,
 } = require("../controllers/analytics/dashboard");
-
 
 const userRouter = express.Router();
 
@@ -65,28 +61,33 @@ userRouter
   .route("/orders")
   .get(verifyTokenUser, getOrderLists)
   .post(verifyTokenUser, placeOrder);
-// .patch(verifyTokenUser,cancelOrder)
 
 userRouter
   .route("/account/:id")
   .get(verifyTokenUser, getAccountLists)
   .post(verifyTokenUser, placeOrder);
-// .patch(verifyTokenUser,cancelOrder)
+
 userRouter.route("/next-stage").post(verifyTokenUser, toNextStage);
 
 userRouter.route("/payout/:id").get(verifyTokenUser, getPayoutRequestOfUser);
 userRouter.get( "/payout-account/:id", verifyTokenUser, getAccountInPayoutRequest);
 
+// Payout Page
 userRouter.post("/payout-account", verifyTokenUser, PayoutRequest);
 userRouter.post("/payout-affiliate", verifyTokenUser, affiliatePayoutRequest);
 userRouter.get("/payout-user", verifyTokenUser, singleUserData);
 
-userRouter.get( "/payout-certificate/:id", verifyTokenUser, generatePayoutCertificate );
+// Certificate Payout
+userRouter.get("/payout-certificate/:id", verifyTokenUser, generatePayoutCertificate );
 
-userRouter.get('/certificate/verify/:accountName', verifyCertificate );
+// Certificate Account Passed
 userRouter.get("/certificate/:accountId/preview",verifyTokenUser,previewCertificate );
 userRouter.get("/certificate/:accountId",verifyTokenUser,downloadCertificate );
 userRouter.get("/certificates/:id",verifyTokenUser,getCertificates );
+
+//Verify Certificate
+userRouter.get('/certificate/verify/:accountName', verifyAccountCertificate );
+userRouter.get("/certificate/payout-verify/:payoutId", verifyPayoutCertificate );
 
 userRouter.get("/withdrawal", verifyTokenUser, getAllWithdrawals);
 

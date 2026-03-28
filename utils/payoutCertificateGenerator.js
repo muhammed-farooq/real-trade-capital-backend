@@ -147,7 +147,7 @@ const generatePayoutCertificatePng = async ({
 
   const formattedDate = formatDate(issuedOn);
 
-  const url = verifyUrl || `https://realtradecapital.com/payout/verify`;
+  const url = verifyUrl || `https://realtradecapital.com/certificate/payout/verify`;
 
   const [qrBuffer, svgBuffer] = await Promise.all([
     generateQR(url),
