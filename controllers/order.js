@@ -303,7 +303,7 @@ const placeOrder = async (req, res) => {
  
     const accountPayload = {
       userId:        user,
-      name:          `${firstName}${lastName}`,
+      name:          `${firstName} ${lastName}`,
       order:         order._id,
       package:       packageId,
       amountSize:    accountSize,

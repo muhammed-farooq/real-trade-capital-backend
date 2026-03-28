@@ -91,8 +91,8 @@ const getAccountInPayoutRequest = async (req, res) => {
       phase: "Funded",
       "MinimumTradingDays.Funded": { $lte: currentDate },
     })
-      .sort({ updatedAt: 1 })
-      .select("userId step accountName passedOn FundedStageCredentials");
+    .sort({ updatedAt: 1 })
+    .select("userId step accountName passedOn FundedStageCredentials");
 
     // if (!accountsPayout.length) {
     //   return res
@@ -310,7 +310,6 @@ const ApprovePayout = async (req, res) => {
     res.status(500).json({ success: false, errMsg: "Internal server error" });
   }
 };
-
 
 const rejectPayout = async (req, res) => {
   try {
