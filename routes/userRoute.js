@@ -80,14 +80,14 @@ userRouter.get("/payout-user", verifyTokenUser, singleUserData);
 // Certificate Payout
 userRouter.get("/payout-certificate/:id", verifyTokenUser, generatePayoutCertificate );
 
+//Verify Certificate
+userRouter.get('/certificate/verify/:accountName', verifyAccountCertificate );
+userRouter.get("/certificate/payout-verify/:payoutId", verifyPayoutCertificate );
+
 // Certificate Account Passed
 userRouter.get("/certificate/:accountId/preview",verifyTokenUser,previewCertificate );
 userRouter.get("/certificate/:accountId",verifyTokenUser,downloadCertificate );
 userRouter.get("/certificates/:id",verifyTokenUser,getCertificates );
-
-//Verify Certificate
-userRouter.get('/certificate/verify/:accountName', verifyAccountCertificate );
-userRouter.get("/certificate/payout-verify/:payoutId", verifyPayoutCertificate );
 
 userRouter.get("/withdrawal", verifyTokenUser, getAllWithdrawals);
 

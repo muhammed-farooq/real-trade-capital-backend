@@ -189,11 +189,13 @@ const verifyPayoutCertificate = async (req, res) => {
     if (!payoutId) {
       return res.status(400).json({ valid: false, errMsg: "Payout ID is required" });
     }
- 
+    
+    console.log(payoutId)
+
     const payout = await Payout.findById(payoutId)
       .populate("account", "accountName platform amountSize")
       .populate("userId",  "first_name last_name email");
- 
+    
     if (!payout) {
       return res.status(404).json({ valid: false, errMsg: "Certificate not found" });
     }
