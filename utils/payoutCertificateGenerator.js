@@ -13,7 +13,7 @@ const TEMPLATE_PATH = path.join(__dirname, "../assets/payout_certificate_templat
 const LEFT_MARGIN = 170;
 
 const NAME_Y   = 990;    // ↑ move up slightly
-const AMOUNT_Y = 1345;   // ↑ tighter under "Your Reward"
+const AMOUNT_Y = 1400;   // ↑ tighter under "Your Reward"
 const DATE_Y   = 1765;   // ↑ sits exactly on gold line
 
 // QR positioning (centered inside frame)
@@ -72,10 +72,11 @@ const buildTextSvg = ({
     <svg width="${templateWidth}" height="${templateHeight}" xmlns="http://www.w3.org/2000/svg">
       <style>
         .amount {
-          font-family: 'Arial Black', 'Arial', sans-serif;
-          font-size: 155px;
-          font-weight: 900;
+          font-family: 'Helvetica Neue', 'Arial', sans-serif;
+          font-size: 205px;
+          font-weight: 700;
           fill: #9E1B1B;
+          letter-spacing: 2px;
         }
 
         .date {
