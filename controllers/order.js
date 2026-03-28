@@ -272,7 +272,7 @@ const placeOrder = async (req, res) => {
       order = existingOrder;
     } else {
       order = await Order.create({
-        name:           `${firstName}${lastName}`,
+        name:           `${firstName} ${lastName}`,
         userId:         user,
         package:        packageId,
         accountName:    uniqueAccountName,
