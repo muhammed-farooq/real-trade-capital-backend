@@ -3,6 +3,12 @@ const { login, profileDetails } = require("../controllers/admin");
 const { verifyTokenAdmin } = require("../middlewares/auth");
 const { packages, editPackage } = require("../controllers/package");
 const { allUsers, blockUser, unBlockUser } = require("../controllers/user");
+const {
+  createDemoCertificate,
+  listDemoCertificates,
+  previewDemoCertificate,
+  downloadDemoCertificate,
+} = require("../controllers/demoCertificateController");
 
 const {
   getOrderLists,
@@ -72,5 +78,10 @@ adminRoute.patch("/withdrawal/:id", verifyTokenAdmin, deleteWithdrawal);
 adminRoute.post("/coupon", verifyTokenAdmin, addCoupon);
 adminRoute.get("/coupon", verifyTokenAdmin, getAllCoupons);
 adminRoute.patch("/coupon/:id", verifyTokenAdmin, stopCoupon);
+
+adminRoute.post("/demo-certificate", verifyTokenAdmin, createDemoCertificate);
+adminRoute.get("/demo-certificates", verifyTokenAdmin, listDemoCertificates);
+adminRoute.get("/demo-certificate/:id/preview", verifyTokenAdmin, previewDemoCertificate);
+adminRoute.get("/demo-certificate/:id/download", verifyTokenAdmin, downloadDemoCertificate);
 
 module.exports = adminRoute;
