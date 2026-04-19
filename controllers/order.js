@@ -1135,12 +1135,12 @@ const cancelOrder = async (req, res) => {
     const userName = order.name;
     const htmlContent = orderCancelled(userName);
     try {
-      await resend.emails.send({
-        from: process.env.WEBSITE_MAIL,
-        to: user.email,
-        subject: "Challenge Purchase Update",
-        html: htmlContent,
-      });
+      // await resend.emails.send({
+      //   from: process.env.WEBSITE_MAIL,
+      //   to: user.email,
+      //   subject: "Challenge Purchase Update",
+      //   html: htmlContent,
+      // });
       console.log("Verification email sent successfully.");
     } catch (emailError) {
       console.error("Error sending email:", emailError);
