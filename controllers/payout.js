@@ -479,8 +479,8 @@ const rejectPayout = async (req, res) => {
 const affiliatePayoutRequest = async (req, res) => {
   try {
     const userId = req.payload.id;
-    const { amount, method, TRC20Wallet } = req.body.formValue;
-    console.log(amount, method, TRC20Wallet);
+    const { amount, method, BEP20Wallet } = req.body.formValue;
+    console.log(amount, method, BEP20Wallet);
 
     // Validate the request data
     if (!amount) return res.status(400).json({ errMsg: "Amount is required" });
@@ -490,10 +490,10 @@ const affiliatePayoutRequest = async (req, res) => {
       return res.status(400).json({ errMsg: "Min Amount is 20$" });
     if (!method)
       return res.status(400).json({ errMsg: "Payment method is required" });
-    if (!TRC20Wallet)
+    if (!BEP20Wallet)
       return res
         .status(400)
-        .json({ errMsg: "TRC20 Wallet address is required" });
+        .json({ errMsg: "BEP20 Wallet address is required" });
 
     // Fetch user data
     const userData = await User.findById(userId);
@@ -511,7 +511,7 @@ const affiliatePayoutRequest = async (req, res) => {
     if (userData.withdrawIng) {
       return res
         .status(400)
-        .json({ errMsg: "You all ready requested wait for the approval" });
+        .json({ errMsg: "You already requested wait for the approval" });
     }
 
     userData.withdrawIng = true;
@@ -522,7 +522,7 @@ const affiliatePayoutRequest = async (req, res) => {
       userId: userId,
       paymentMethod: method,
       requestedOn: new Date(),
-      TRC20Wallet,
+      BEP20Wallet,
       amount:Number(amount),
       isAffiliate: true,
     });
@@ -596,15 +596,26 @@ const affiliateApprovePayout = async (req, res) => {
     payout.txnId = txnId;
     payout.note = note;
 
-    // Update user's wallet and affiliate payout tracking
-    if (!isNaN(payout.amount)) {
-      user.affiliate_paidOut += payout.amount;
-      user.wallet -= payout.amount;
-      user.withdrawIng = false;
-    } else {
+    const amount = Number(payout.amount);
+
+    // if (!isNaN(payout.amount)) {
+    //   user.affiliate_paidOut += payout.amount;
+    //   user.wallet -= payout.amount;
+    //   user.withdrawIng = false;
+    // } else {
+    //   console.log("Payout amount is not a valid number:", payout.amount);
+    //   return res.status(400).json({ errMsg: "Invalid payout amount." });
+    // }
+
+    if (isNaN(amount)) {
       console.log("Payout amount is not a valid number:", payout.amount);
       return res.status(400).json({ errMsg: "Invalid payout amount." });
     }
+
+    user.affiliate_paidOut = (Number(user.affiliate_paidOut) || 0) + amount;
+    user.wallet = (Number(user.wallet) || 0) - amount;
+    user.withdrawIng = false;
+
     user.notifications.push(
       notification(
         "/dashboard/payouts",

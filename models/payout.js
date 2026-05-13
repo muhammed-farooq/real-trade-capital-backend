@@ -20,7 +20,9 @@ const payoutSchema = new mongoose.Schema(
     },
     TRC20Wallet: {
       type: String,
-      required: true,
+    },
+    BEP20Wallet: {
+      type: String,
     },
     step: {
       type: String,
