@@ -20,7 +20,8 @@ const getLotSizeByAccountSize = (accountSize) => {
   return match ? match.lots : 5; // fallback to 1.0
 };
 
-const buildChallengeConfig = (packageData, phase = "PhaseOne", accountSize = 0) => {
+const buildChallengeConfig = (packageData, phase, accountSize = 0) => {
+  console.log(`Building challenge config for phase "${phase}" with account size ${accountSize}`);
   const cfg =
     phase === "Funded"
       ? packageData.fundedStage
@@ -33,12 +34,14 @@ const buildChallengeConfig = (packageData, phase = "PhaseOne", accountSize = 0) 
 
   // Only apply account-size-based limits when the package has a non-zero cap
   const maxLotSize =
-    packageLotSize === 0 ? 0 : getLotSizeByAccountSize(accountSize);
+  phase === "Funded"
+    ? getLotSizeByAccountSize(accountSize)
+    : 0;
 
   return {
     maxDailyLoss:   toNum(cfg.MaximumDailyLoss,   5),
     maxTotalLoss:   toNum(cfg.MaximumLoss,        10),
-    profitTarget:   toNum(cfg.ProfitTarget,       10),
+    profitTarget:   toNum( cfg.ProfitTarget === "-" ? 0 : toNum(cfg.ProfitTarget, 10) ),
     minTradingDays: toNum(cfg.MinimumTradingDays, 10),
     maxLotSize,
   };
@@ -51,7 +54,7 @@ const createTradingAccount = async ({
   packageId,
   accountSize,
   login,
-  phase = "PhaseOne",
+  phase 
 }) => {
   if (!userId || !orderId || !accountId || !packageId || !accountSize) {
     throw new Error(
