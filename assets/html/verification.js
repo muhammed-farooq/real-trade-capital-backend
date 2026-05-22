@@ -228,10 +228,19 @@ const purchaseConfirmation = (userName) =>
             </p>
           </td>
         </tr>
+
+        <tr>
+          <td style="padding-bottom:16px;">
+            <p style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:16px;color:#aaa;line-height:28px;">
+              Account setup usually takes around <strong style="color:#fff;">1–4 hours</strong>. Once ready, you will receive another email containing your full trading account credentials and platform details.
+            </p>
+          </td>
+        </tr>
+
         <tr>
           <td>
             <p style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:16px;color:#aaa;line-height:28px;">
-              You will receive a follow-up email with your full account credentials as soon as it's ready. Sit tight — your journey begins very soon.
+              Sit tight — your trading journey begins very soon.
             </p>
           </td>
         </tr>

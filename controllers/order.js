@@ -982,47 +982,61 @@ const getUSDTBEPBalance = async (walletAddress) => {
 
 const checkAndTransferPayment = async (orderData) => {
   try {
-    if(orderData.paymentMethod === "USDT-BEP20"){
-      const balance = await getUSDTBEPBalance(orderData.paymentAddress)
-      console.log('Balance BEP-20 :',balance);
-      if (balance >= orderData.price) {
-          await onChainWallet.updateOne(
-            { address: orderData.paymentAddress },
-            { isUsed: true }
-          );
-        return true;
+    const allowedDifference = 0.5;
+
+    if (orderData.paymentMethod === "USDT-BEP20") {
+
+      const balance = await getUSDTBEPBalance(orderData.paymentAddress);
+
+      console.log("Balance BEP-20 :", balance);
+
+      if (balance >= (orderData.price - allowedDifference)) {
+
+        await onChainWallet.updateOne(
+          { address: orderData.paymentAddress },
+          { isUsed: true }
+        );
+
+        return {
+          success: true,
+          balance
+        };
       }
-      else return false;
-    } else if(orderData.paymentMethod === "USDT-TRC20"){
+
+      return { success: false };
+
+    } else if (orderData.paymentMethod === "USDT-TRC20") {
       const tronWebInstance = createTronWebInstance(orderData.privateKey);
       const usdtContract = await initializeUsdtContract(tronWebInstance);
       const usdtBalance = await usdtContract.methods
         .balanceOf(orderData.paymentAddress)
         .call();
-      const balanceInSun = usdtBalance.toString();
 
-      const balance = parseFloat(tronWebInstance.fromSun(balanceInSun));
+      const balance = parseFloat(
+        tronWebInstance.fromSun(usdtBalance.toString())
+      );
+
       console.log("Balance TRC-20:", balance);
-      if (balance >= orderData.price){
-          await onChainWallet.updateOne(
-            { address: orderData.paymentAddress },
-            { isUsed: true }
-          );
-        return true;
+
+      if (balance >= (orderData.price - allowedDifference)) {
+        await onChainWallet.updateOne(
+          { address: orderData.paymentAddress },
+          { isUsed: true }
+        );
+        return {
+          success: true,
+          balance
+        };
       }
-      else return false;
-    }  
-  } catch (error) {
-    if (error.response) {
-      console.error("Error response data:", error.response.data);
-      console.error("Error response status:", error.response.status);
-      console.error("Error response headers:", error.response.headers);
-    } else if (error.request) {
-      console.error("Error request data:", error.request);
-    } else {
-      console.error("Error message:", error);
+      return { success: false };
     }
-    return { success: false, transaction: null };
+    return { success: false };
+  } catch (error) {
+    console.error("Payment Check Error:", error);
+    return {
+      success: false,
+      transaction: null
+    };
   }
 };
 
@@ -1033,7 +1047,7 @@ const paymentCheck = async (req, res) => {
       const orderData = await Order.findById(id);
       if (orderData && orderData.paymentAddress) {
         const result = await checkAndTransferPayment(orderData);                            
-        if (result) {
+        if (result.success) {
           orderData.txnStatus = "Completed";
           await orderData.save();
 
