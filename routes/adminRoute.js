@@ -41,6 +41,7 @@ const {
   stopCoupon,
   useCoupon,
 } = require("../controllers/coupon");
+const { partnerStats, reviewApplication, listApplications } = require("../controllers/partners");
 const adminRoute = express.Router();
 
 adminRoute.post("/login", login);
@@ -83,5 +84,9 @@ adminRoute.post("/demo-certificate", verifyTokenAdmin, createDemoCertificate);
 adminRoute.get("/demo-certificates", verifyTokenAdmin, listDemoCertificates);
 adminRoute.get("/demo-certificate/:id/preview", verifyTokenAdmin, previewDemoCertificate);
 adminRoute.get("/demo-certificate/:id/download", verifyTokenAdmin, downloadDemoCertificate);
+
+adminRoute.get("/admin/partner/stats", verifyTokenAdmin, partnerStats);
+adminRoute.get("/admin/partner/applications", verifyTokenAdmin, listApplications);
+adminRoute.post("/admin/partner/review", verifyTokenAdmin, reviewApplication);
 
 module.exports = adminRoute;

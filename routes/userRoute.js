@@ -7,6 +7,7 @@ const {
   newPassword,
   forgotPassword,
   NotificationCount,
+  getUserData,
 } = require("../controllers/user");
 const { verifyTokenUser } = require("../middlewares/auth");
 const {
@@ -44,6 +45,10 @@ const {
   getAccountWarnings,
   acknowledgeWarnings,
 } = require("../controllers/analytics/dashboard");
+const { 
+  applyPartner,
+  checkStatus
+} = require("../controllers/partners");
 
 const userRouter = express.Router();
 
@@ -52,6 +57,7 @@ userRouter.post("/login", login);
 userRouter.post("/verify-mail/:id", verifyMail);
 userRouter.get("/profile", verifyTokenUser, profileDetails);
 userRouter.get("/notification", verifyTokenUser, NotificationCount);
+userRouter.get("/user-data", verifyTokenUser, getUserData);
 
 userRouter.get("/packages", packages);
 userRouter.get("/order/:id", verifyTokenUser, getOrderData);
@@ -104,5 +110,10 @@ userRouter.get("/dashboard/balance/:id", fetchDataDaily);    // ?days=90
 userRouter.get("/dashboard/history/:id", fetchTradeHistory); // ?page=1&limit=20 
 userRouter.get("/dashboard/warnings/:id", getAccountWarnings); 
 userRouter.post("/dashboard/warnings/acknowledge/:id", acknowledgeWarnings);
+
+userRouter.post("/partner/apply", verifyTokenUser, applyPartner);
+userRouter.get("/partner/status", verifyTokenUser, checkStatus);
+
+
 
 module.exports = userRouter;

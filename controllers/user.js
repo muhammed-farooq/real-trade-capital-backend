@@ -59,7 +59,7 @@ const signup = async (req, res) => {
       last_name: lastName,
       email,
       password: hashedPassword,
-      affiliate_id: referralNumber,
+      affiliate_id: referralNumber, 
       parent_affiliate: referralCode || "",
       is_affiliate: !!referralCode,
       country: countryName || ""
@@ -361,6 +361,16 @@ const unBlockUser = async (req, res) => {
   }
 };
 
+const getUserData = async(req,res)=>{
+  try{
+    const userData = await User.findOne({ _id: req.user._id },{password: 0}); 
+    userData ? res.status(200).json({ userData }) : res.status(400).json({ errMsg: "User not found" }); 
+  }catch (error) { 
+    log.error(error);
+    return res.status(500).json({ errMsg: "Server error" });
+  }
+}
+
 module.exports = {
   signup,
   login,
@@ -372,4 +382,5 @@ module.exports = {
   profileDetails,
   verifyMail,
   NotificationCount,
+  getUserData
 };

@@ -85,7 +85,7 @@ const getAllWithdrawals = async (req, res) => {
     const withdrawals = await Withdrawal.find().sort({ createdAt: -1 }); // Fetch all withdrawals
     let userData;
     if (req.query.id) {
-      userData = await User.findOne({ _id: req.query.id });
+      userData = await User.findOne({ _id: req.query.id },{password : 0});
     }
 
     if (!withdrawals || withdrawals.length === 0) {
