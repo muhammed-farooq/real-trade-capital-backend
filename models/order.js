@@ -123,6 +123,10 @@ const orderSchema = new mongoose.Schema(
     note: {
       type: String,
     },
+    expiresAt: { 
+      type: Date, 
+      default: null 
+    },
   },
   {
     timestamps: true,

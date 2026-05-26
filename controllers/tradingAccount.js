@@ -54,7 +54,8 @@ const createTradingAccount = async ({
   packageId,
   accountSize,
   login,
-  phase 
+  phase,
+  expiresAt = null,        // Instant funding only
 }) => {
   if (!userId || !orderId || !accountId || !packageId || !accountSize) {
     throw new Error(
@@ -75,6 +76,7 @@ const createTradingAccount = async ({
     challengeConfig,
     status:          login ? "active" : "pending",
     ...(login && { login }),
+    ...(expiresAt && { expiresAt }),
   };
 
   // Upsert: one TradingAccount per (userId + order + account)

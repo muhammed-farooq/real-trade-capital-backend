@@ -94,6 +94,9 @@ const TradingAccountSchema = new mongoose.Schema({
   status:    { type: String, enum: ["active", "failed", "pending", "completed"], default: "pending" },
   syncError: { type: String },
 
+  expiresAt: { type: Date, default: null },   // Instant only — null = no expiry
+  isExpired: { type: Boolean, default: false },
+
 }, { timestamps: true });
 
 TradingAccountSchema.index({ account: 1 });

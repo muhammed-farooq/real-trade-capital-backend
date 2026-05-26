@@ -155,6 +155,8 @@ const accountSchema = new mongoose.Schema(
     toFundedOn: { type: Date },
     toPhaseTwoOn: { type: Date },
     orderCancelledAt: { type: Date },
+
+    expiresAt: { type: Date, default: null }
   },
   {
     timestamps: true,
