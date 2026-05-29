@@ -498,7 +498,7 @@ const getUSDTBEPBalance = async (walletAddress) => {
 
 const checkAndTransferPayment = async (orderData) => {
   try {
-    const allowedDifference = 0.5;
+    const allowedDifference = 1.5;
 
     if (orderData.paymentMethod === "USDT-BEP20") {
 
