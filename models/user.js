@@ -67,7 +67,7 @@
       },
       affiliate_share: {
         type: Number,
-        default: 15,
+        default: 10,
       },
       affiliate_paidOut: {
         type: Number,
@@ -139,7 +139,7 @@
           },
           type: {
             type: String,
-            enum: ["err", "msg", "good", "info"],
+            enum: ["err", "msg", "good", "info", "warn"],
             default: "msg",
           },
           content: {

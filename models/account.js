@@ -140,7 +140,16 @@ const accountSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["Not Passed", "Passed", "Pending", "Ongoing", "Cancelled"],
+      enum: [
+        "Not Passed", 
+        "Passed", 
+        "Pending", 
+        "Ongoing", 
+        "Cancelled",
+        "Failed",
+        "Withdrawn",
+        "Replaced"
+      ],
       default: "Pending",
     },
     isBanned: { type: Boolean, default: false },

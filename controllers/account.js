@@ -122,7 +122,6 @@ const toNextStage = async (req, res) => {
   }
 };
 
-
 const ApproveRequest = async (req, res) => {
   try {
     const { formValue, accountId } = req.body;
@@ -588,6 +587,7 @@ const rejectRequest = async (req, res) => {
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 };
+
 module.exports = {
   getAccountLists,
   toNextStage,

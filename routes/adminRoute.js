@@ -28,6 +28,7 @@ const {
   ApprovePayout,
   rejectPayout,
   affiliateApprovePayout,
+  replacePayout,
 } = require("../controllers/payout");
 const {
   getAllWithdrawals,
@@ -69,6 +70,7 @@ adminRoute.post(
   affiliateApprovePayout
 );
 adminRoute.post("/payout-reject", verifyTokenAdmin, rejectPayout);
+adminRoute.post("/payout-replace", verifyTokenAdmin, replacePayout);
 
 adminRoute.get("/withdrawal", verifyTokenAdmin, getAllWithdrawals);
 
