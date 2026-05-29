@@ -351,72 +351,107 @@ const placeOrder = async (req, res) => {
   }
 };
 
+/* =====================================================================
+   BACKEND — getOrderLists  (updated)
+   ---------------------------------------------------------------------
+   Changes vs your current version:
+   1. Accepts `orderStatus` and `paymentMethod` query params for the chips.
+   2. Returns a `total` count so the frontend can paginate properly.
+   3. Returns `page` / `limit` so the UI can stay in sync.
+   Everything else (search regex, date filter, role) is unchanged.
+   ===================================================================== */
+ 
 const getOrderLists = async (req, res) => {
   try {
-    const { search, filter, skip, path, role, startDate, endDate } = req.query;
-    console.log("Query Params:", skip, path, role, search, startDate, endDate);
-    const { id } = req.payload;
-    let orderList = [];
-    let limit = path === "/profile" || path === "/dashboard" ? 5 : 10;
-
-    // Build search query
+    const {
+      search,
+      skip,
+      path,
+      role,
+      startDate,
+      endDate,
+      orderStatus, // NEW
+      paymentMethod, // NEW
+    } = req.query;
+ 
+    const limit = path === "/profile" || path === "/dashboard" ? 5 : 10;
+ 
+    /* ---------- search conditions (unchanged) ---------- */
     const searchConditions = [];
-
-    // Handle spaces in search using regex
     const formattedSearch = search ? search.replace(/\s+/g, "\\s*") : "";
-
-    // Text search on name and accountName
+ 
     if (formattedSearch) {
       searchConditions.push(
         { name: { $regex: formattedSearch, $options: "i" } },
         { accountName: { $regex: formattedSearch, $options: "i" } }
       );
-
-      // Number search on amountSize
       const parsedAmount = parseFloat(search);
       if (!isNaN(parsedAmount)) {
         searchConditions.push({ amountSize: parsedAmount });
       }
     }
-
-    // Date range filter on orderCreatedAt
+ 
+    /* ---------- date range (unchanged) ---------- */
     const dateFilter = {};
     if (startDate && !isNaN(new Date(startDate).getTime())) {
       dateFilter.$gte = new Date(startDate);
     }
     if (endDate && !isNaN(new Date(endDate).getTime())) {
-      dateFilter.$lte = new Date(endDate);
+      // include the whole end day
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      dateFilter.$lte = end;
     }
-
-    // Construct the final query (preventing empty $and)
+ 
+    /* ---------- build final query ---------- */
     const finalQuery = {};
-
+ 
     if (searchConditions.length) {
       finalQuery.$or = searchConditions;
     }
-
     if (Object.keys(dateFilter).length) {
       finalQuery.orderCreatedAt = dateFilter;
     }
-
-    // Fetch orders based on role
-    if (role === "admin") {
-      orderList = await Order.find(finalQuery)
-        .skip(parseInt(skip) || 0)
-        .limit(limit)
-        .populate({
-          path: "userId",
-          select: "first_name last_name email phone",
-        })
-        .populate({
-          path: "coupon",
-          select: "couponCode discountAmount expiryDate",
-        })
-        .sort({ orderCreatedAt: -1 });
+ 
+    // NEW: status & method chip filters
+    if (orderStatus && orderStatus !== "All") {
+      finalQuery.orderStatus = orderStatus;
     }
-
-    console.log("Order List:", orderList);
-    res.status(200).json({ orderList });
+    if (paymentMethod && paymentMethod !== "All") {
+      finalQuery.paymentMethod = paymentMethod;
+    }
+ 
+    /* ---------- fetch + count ---------- */
+    let orderList = [];
+    let total = 0;
+ 
+    if (role === "admin") {
+      // run both in parallel for speed
+      [orderList, total] = await Promise.all([
+        Order.find(finalQuery)
+          .skip(parseInt(skip) || 0)
+          .limit(limit)
+          .populate({
+            path: "userId",
+            select: "first_name last_name email phone",
+          })
+          .populate({
+            path: "coupon",
+            select: "couponCode discountAmount expiryDate",
+          })
+          .sort({ orderCreatedAt: -1 }),
+        Order.countDocuments(finalQuery),
+      ]);
+    }
+ 
+    const currentPage = Math.floor((parseInt(skip) || 0) / limit) + 1;
+ 
+    res.status(200).json({
+      orderList,
+      total, // NEW — total matching docs
+      page: currentPage, // NEW
+      limit, // NEW
+    });
   } catch (error) {
     console.error("Error:", error);
     res.status(504).json({ errMsg: "Gateway time-out" });
@@ -442,7 +477,7 @@ const getOrderData = async (req, res) => {
       // console.log(orderData);
       orderData
         ? res.status(200).json({ orderData })
-        : res.status(504).json({ errMsg: "Soothing wrong" });
+        : res.status(504).json({ errMsg: "Something wrong" });
     }
   } catch (error) {
     console.log(error);

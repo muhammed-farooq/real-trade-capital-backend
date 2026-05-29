@@ -85,7 +85,7 @@ const getAccountInPayoutRequest = async (req, res) => {
 
     const accountsPayout = await Account.find({
       userId: userId,
-      status: "Passed",
+      status: "Ongoing",
       isBanned: false,
       withdrawIng: false,
       phase: "Funded",
@@ -110,8 +110,8 @@ const getAccountInPayoutRequest = async (req, res) => {
 const PayoutRequest = async (req, res) => {
   try {
     const userId = req.payload.id;
-    const { accountId, amount, method, TRC20Wallet } = req.body.formValue;
-    console.log(accountId, amount, method, TRC20Wallet);
+    const { accountId, amount, method, BEP20Wallet } = req.body.formValue;
+    console.log(accountId, amount, method, BEP20Wallet);
 
     // Validate the request data
     if (!accountId)
@@ -121,7 +121,7 @@ const PayoutRequest = async (req, res) => {
       return res.status(400).json({ errMsg: "Invalid amount" });
     if (!method)
       return res.status(400).json({ errMsg: "Payment method is required" });
-    if (!TRC20Wallet)
+    if (!BEP20Wallet)
       return res
         .status(400)
         .json({ errMsg: "TRC20 Wallet address is required" });
@@ -137,7 +137,7 @@ const PayoutRequest = async (req, res) => {
     // Fetch account data
     const account = await Account.findOne({
       _id: accountId,
-      status: "Passed",
+      status: "Ongoing",
       phase: "Funded",
       isBanned: false,
       "MinimumTradingDays.Funded": { $lte: new Date() },
@@ -161,7 +161,7 @@ const PayoutRequest = async (req, res) => {
       step: account.step,
 
       requestedOn: new Date(),
-      TRC20Wallet,
+      BEP20Wallet,
       amount: Number(amount),
       FundedStageCredentials: account.FundedStageCredentials,
     });
@@ -251,7 +251,7 @@ const ApprovePayout = async (req, res) => {
     payout.txnId = txnId;
     payout.note = note;
     account.fondedAccountNo = account.fondedAccountNo + 1;
-    account.withdrawsAmount = currentWithdrawsAmount + payoutAmount;
+    account.withdrawsAmount = Number((currentWithdrawsAmount + payoutAmount).toFixed(2));
     account.withdrawIng = false;
 
     const user = await User.findById(payout.userId);
