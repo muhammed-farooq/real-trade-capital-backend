@@ -5,6 +5,7 @@ const TradingAccount = require("../../../models/dashboard/tradingAccount");
 const { saveWarning }                    = require("../utils/saveWarning");
 const { fetchHighImpactNews, warmCache } = require("../utils/fetchHighImpactNews");
 const { passAccount } = require("../utils/accountlifecycle");
+const { runInstantChecks } = require("./instantRuleChecks");
 
 const todayStr = () => new Date().toISOString().split("T")[0];
 
@@ -395,6 +396,9 @@ const runAllChecks = async (account) => {
   await checkNewsTrading(account);
   await checkLotSize(account);
   await checkBalanceBreach(account);
+
+  // Instant-only checks (no-op for evaluation accounts)
+  await runInstantChecks(account);
 
   if (await isAccountFailed(account._id)) return;
 

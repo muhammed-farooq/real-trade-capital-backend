@@ -20,6 +20,12 @@ const getLotSizeByAccountSize = (accountSize) => {
   return match ? match.lots : 5; // fallback to 1.0
 };
 
+const resolveAccountType = (packageData) => {
+  if (packageData.PackageType === "instant") return "instant";
+  const evalStage = packageData.evaluationStage ?? {};
+  return evalStage.PhaseTwo ? "twoStep" : "oneStep";
+};
+
 const buildChallengeConfig = (packageData, phase, accountSize = 0) => {
   console.log(`Building challenge config for phase "${phase}" with account size ${accountSize}`);
   const cfg =
@@ -29,21 +35,29 @@ const buildChallengeConfig = (packageData, phase, accountSize = 0) => {
 
   if (!cfg) throw new Error(`Phase "${phase}" not found on package`);
 
-  // Package-level maxLotSize (0 = unlimited, e.g. evaluation stages)
-  const packageLotSize = toNum(cfg.MaxLotSize, 0);
+  const accountType = resolveAccountType(packageData);
+  const isInstant   = accountType === "instant";
 
-  // Only apply account-size-based limits when the package has a non-zero cap
   const maxLotSize =
-  phase === "Funded"
-    ? getLotSizeByAccountSize(accountSize)
-    : 0;
+    isInstant
+      ? 0
+      : phase === "Funded"
+      ? getLotSizeByAccountSize(accountSize)
+      : 0;
 
   return {
     maxDailyLoss:   toNum(cfg.MaximumDailyLoss,   5),
     maxTotalLoss:   toNum(cfg.MaximumLoss,        10),
-    profitTarget:   toNum( cfg.ProfitTarget === "-" ? 0 : toNum(cfg.ProfitTarget, 10) ),
+    profitTarget:   toNum(cfg.ProfitTarget === "-" ? 0 : toNum(cfg.ProfitTarget, 10)),
     minTradingDays: toNum(cfg.MinimumTradingDays, 10),
     maxLotSize,
+    // ── Account type + Instant-only rule toggles ──────────────────────────
+    accountType,                                  // "instant" | "oneStep" | "twoStep"
+    ...(isInstant && {
+      stopLossRequired: true,                     // enforce SL on every trade
+      minHoldSeconds:   60,                       // 1-minute minimum hold
+      riskGuard:        true,                     // largest loss <= largest win
+    }),
   };
 };
 

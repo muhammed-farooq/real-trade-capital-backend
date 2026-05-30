@@ -23,6 +23,8 @@ const AccountWarningSchema = new mongoose.Schema(
         "BALANCE_BREACH",     // balance fell below max-loss floor
         "NEWS_TRADING",       // trade opened/held through high-impact news
         "LOT_SIZE",           // lot size exceeds configured max
+        
+        "RISK_GUARD", "NO_STOP_LOSS", "MIN_HOLD_TIME",
       ],
       required: true,
       index: true,
