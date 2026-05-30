@@ -15,8 +15,9 @@ const {
   accountFailed,
 } = require("../assets/html/payout");
 const { createTradingAccount } = require("./tradingAccount");
-
+const { copyWarningsToReplacement } = require("./analytics/utils/copyAccountWarnings");
 const resend = new Resend(process.env.RESEND_SECRET_KEY);
+
 const encryptPassword = (password) => {
   const secretKey = process.env.PASSWORD_SALT;
   return CryptoJS.AES.encrypt(password, secretKey).toString();
@@ -33,12 +34,6 @@ const getPayoutRequestOfUser = async (req, res) => {
       .sort({ updatedAt: -1 })
       .populate({ path: "account", select: "accountName" });
 
-    // if (!allPayoutRequests.length) {
-    //   return res
-    //     .status(404)
-    //     .json({ message: "No accounts found for payout request." });
-    // }
-
     res.status(200).json({ allPayoutRequests: allPayoutRequests });
   } catch (error) {
     console.error("Error fetching account lists:", error);
@@ -54,24 +49,6 @@ const getPayoutRequestAdmin = async (req, res) => {
         updatedAt: -1,
       })
       .populate([{ path: "account", select: "accountName" }]);
-
-    // const allPayoutRequests = await Payout.find({})
-    //   .sort({
-    //     updatedAt: -1,
-    //   })
-    //   .populate([
-    //     {
-    //       path: "account",
-    //       select: "accountName",
-    //       // Ensure that the `account` field can be null or undefined
-    //       match: { account: { $exists: true, $ne: null } },
-    //     },
-    //     {
-    //       path: "userId",
-    //       select: "email",
-    //     },
-    //   ]);
-    console.log(allPayoutRequests);
 
     res.status(200).json({ allPayoutRequests: allPayoutRequests });
   } catch (error) {
@@ -97,12 +74,6 @@ const getAccountInPayoutRequest = async (req, res) => {
     })
     .sort({ updatedAt: 1 })
     .select("userId step accountName passedOn FundedStageCredentials");
-
-    // if (!accountsPayout.length) {
-    //   return res
-    //     .status(404)
-    //     .json({ message: "No accounts found for payout request." });
-    // }
 
     res.status(200).json({ allAccountsPayout: accountsPayout });
   } catch (error) {
@@ -176,6 +147,12 @@ async function createReplacementAccount({ oldAccount, credentials, isInstant }) 
     phase:       "Funded",
     ...(newAccount.expiresAt && { expiresAt: newAccount.expiresAt }),
   });
+
+  try {
+    await copyWarningsToReplacement(oldAccount._id, newAccount._id);
+  } catch (err) {
+    console.error("[createReplacementAccount] warning copy failed:", err.message);
+  }
  
   return newAccount;
 }

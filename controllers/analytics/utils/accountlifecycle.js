@@ -105,7 +105,7 @@ const passAccount = async (tradingAccountId, nextPhase) => {
             from:    process.env.WEBSITE_MAIL,
             to:      user.email,
             subject: `Challenge Passed${nextPhase ? ` — Ready for ${nextPhase}` : ""} — ${accountName}`,
-            html:    passEmail({ userName, accountName, reason }),
+            html:    passEmail({ userName, accountName, nextPhase  }),
           });
       } catch (emailError) {
         console.error("[toNextStage] email failed:", emailError.message);

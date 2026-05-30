@@ -46,6 +46,12 @@ const AccountWarningSchema = new mongoose.Schema(
     resolvedAt:   { type: Date, default: null },
 
     dedupKey: { type: String, index: true },
+    
+    carriedFrom: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "tradingAccount",   // lowercase — matches your actual model name
+      default: null,
+    },
   },
   { timestamps: true }
 );
