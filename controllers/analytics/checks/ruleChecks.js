@@ -138,6 +138,33 @@ const checkDailyDrawdown = async (account) => {
 // account started from profit ($120k), it does NOT breach the total drawdown
 // limit unless balance actually falls below startingBalance * (1 - maxTotal%).
 // ─────────────────────────────────────────────────────────────────────────────
+// const checkMaxDrawdown = async (account) => {
+//   try {
+//     const cfg      = account.challengeConfig ?? {};
+//     const maxTotal = cfg.maxTotalLoss ?? 10;
+
+//     const drawdown = account.drawdown ?? 0;
+
+//     if (!drawdown || drawdown <= 0) return;   // no drawdown
+//     if (drawdown < maxTotal) return;          // below breach threshold
+
+//     const dataDateStr = getDataDateStr(account);
+
+//     await saveWarning({
+//       tradingAccount: account._id,
+//       user:           account.userId,
+//       type:           "MAX_DRAWDOWN",
+//       severity:       "breach",
+//       title:          "Max Drawdown Limit Breached",
+//       message:        `Drawdown is ${drawdown.toFixed(2)}% — limit is ${maxTotal}%. Challenge rule breached.`,
+//       snapshot:       { drawdown, maxTotalLoss: maxTotal, balance: account.balance, startBal: account.startingBalance, dataDate: dataDateStr },
+//       dedupKey:       `MAX_DD:${dataDateStr}:breach`,
+//     });
+//   } catch (err) {
+//     console.error(`[checkMaxDrawdown] account=${account._id}:`, err.message);
+//   }
+// };
+
 const checkMaxDrawdown = async (account) => {
   try {
     const cfg      = account.challengeConfig ?? {};
@@ -148,27 +175,41 @@ const checkMaxDrawdown = async (account) => {
 
     if (!startBal || !balance) return;
 
-    // How much has balance dropped below startingBalance as a %
-    // If balance >= startingBalance this is <= 0 → no breach possible
+    const dataDateStr = getDataDateStr(account);
+
+    // ── Check 1: balance drop vs starting balance ──────────────────────────
     const totalDropPct = parseFloat(
       (((startBal - balance) / startBal) * 100).toFixed(2)
     );
 
-    if (totalDropPct <= 0) return;      // still in profit vs starting balance
-    if (totalDropPct < maxTotal) return; // below the breach threshold
+    if (totalDropPct > 0 && totalDropPct >= maxTotal) {
+      await saveWarning({
+        tradingAccount: account._id,
+        user:           account.userId,
+        type:           "MAX_DRAWDOWN",
+        severity:       "breach",
+        title:          "Max Drawdown Limit Breached",
+        message:        `Total drawdown is ${totalDropPct.toFixed(2)}% from starting balance — limit is ${maxTotal}%. Challenge rule breached.`,
+        snapshot:       { balance, startBal, totalDropPct, maxTotalLoss: maxTotal, dataDate: dataDateStr },
+        dedupKey:       `MAX_DD:${dataDateStr}:breach`,
+      });
+    }
 
-    const dataDateStr = getDataDateStr(account);
+    // ── Check 2: synced drawdown field (from MyfxBook) ─────────────────────
+    const reportedDd = parseFloat((account.drawdown ?? 0).toFixed(2));
 
-    await saveWarning({
-      tradingAccount: account._id,
-      user:           account.userId,
-      type:           "MAX_DRAWDOWN",
-      severity:       "breach",
-      title:          "Max Drawdown Limit Breached",
-      message:        `Total drawdown is ${totalDropPct.toFixed(2)}% from starting balance — limit is ${maxTotal}%. Challenge rule breached.`,
-      snapshot:       { balance, startBal, totalDropPct, maxTotalLoss: maxTotal, dataDate: dataDateStr },
-      dedupKey:       `MAX_DD:${dataDateStr}:breach`,
-    });
+    if (reportedDd > 0 && reportedDd >= maxTotal) {
+      await saveWarning({
+        tradingAccount: account._id,
+        user:           account.userId,
+        type:           "MAX_DRAWDOWN",
+        severity:       "breach",
+        title:          "Max Drawdown Limit Breached",
+        message:        `Reported drawdown is ${reportedDd.toFixed(2)}% — limit is ${maxTotal}%. Challenge rule breached.`,
+        snapshot:       { reportedDrawdown: reportedDd, maxTotalLoss: maxTotal, dataDate: dataDateStr },
+        dedupKey:       `MAX_DD:${dataDateStr}:reported`,
+      });
+    }
   } catch (err) {
     console.error(`[checkMaxDrawdown] account=${account._id}:`, err.message);
   }
@@ -261,6 +302,39 @@ const checkNewsTrading = async (account) => {
 // maxLotSize = 0 means UNLIMITED — skip the check entirely.
 // Mainly applies to funded stage accounts which may have a real cap (e.g. 5).
 // ─────────────────────────────────────────────────────────────────────────────
+// const checkLotSize = async (account) => {
+//   try {
+//     const cfg    = account.challengeConfig ?? {};
+//     const maxLot = cfg.maxLotSize ?? 0;
+
+//     // 0 = no limit — nothing to enforce
+//     if (!maxLot || maxLot <= 0) return;
+
+//     const openTrades = await OpenTrade.find(
+//       { tradingAccount: account._id, isPending: false },
+//       { symbol: 1, lots: 1, openTime: 1 }
+//     ).lean();
+
+//     for (const trade of openTrades) {
+//       const lots = trade.lots ?? 0;
+//       if (lots <= maxLot) continue;
+
+//       await saveWarning({
+//         tradingAccount: account._id,
+//         user:           account.userId,
+//         type:           "LOT_SIZE",
+//         severity:       "warning",
+//         title:          `Lot Size Exceeded — ${trade.symbol}`,
+//         message:        `Open trade on ${trade.symbol} uses ${lots} lots — max allowed is ${maxLot}.`,
+//         snapshot:       { symbol: trade.symbol, lots, maxLot, openTime: trade.openTime },
+//         dedupKey:       `LOT:${trade.symbol}:${trade.openTime}`,
+//       });
+//     }
+//   } catch (err) {
+//     console.error(`[checkLotSize] account=${account._id}:`, err.message);
+//   }
+// };
+
 const checkLotSize = async (account) => {
   try {
     const cfg    = account.challengeConfig ?? {};
@@ -274,8 +348,12 @@ const checkLotSize = async (account) => {
       { symbol: 1, lots: 1, openTime: 1 }
     ).lean();
 
+    let totalLots = 0;
+
     for (const trade of openTrades) {
       const lots = trade.lots ?? 0;
+      totalLots += lots;
+
       if (lots <= maxLot) continue;
 
       await saveWarning({
@@ -287,6 +365,23 @@ const checkLotSize = async (account) => {
         message:        `Open trade on ${trade.symbol} uses ${lots} lots — max allowed is ${maxLot}.`,
         snapshot:       { symbol: trade.symbol, lots, maxLot, openTime: trade.openTime },
         dedupKey:       `LOT:${trade.symbol}:${trade.openTime}`,
+      });
+    }
+
+    // Aggregate: sum of all open lots vs max allowed
+    totalLots = parseFloat(totalLots.toFixed(2));
+    if (totalLots > maxLot) {
+      const dataDateStr = getDataDateStr(account);
+
+      await saveWarning({
+        tradingAccount: account._id,
+        user:           account.userId,
+        type:           "TOTAL_LOT_SIZE",
+        severity:       "warning",
+        title:          "Total Lot Size Exceeded",
+        message:        `Total open lots across all trades is ${totalLots} — max allowed is ${maxLot}.`,
+        snapshot:       { totalLots, maxLot, openTradeCount: openTrades.length, dataDate: dataDateStr },
+        dedupKey:       `TOTAL_LOT:${dataDateStr}`,
       });
     }
   } catch (err) {
