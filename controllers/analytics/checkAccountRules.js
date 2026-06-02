@@ -37,10 +37,10 @@ const checkAccountRules = async () => {
         _id: 1,
         userId: 1,
         login: 1,
-        balance: 1,
+        balance: 1, 
         equity: 1,
         startingBalance: 1,
-        drawdown: 1,            // ← add this
+        drawdown: 1,        
         dailyHighBalance: 1,
         dailyHighBalanceDate: 1,
         lastUpdateDate: 1,
