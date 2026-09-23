@@ -35,7 +35,7 @@ const getAccountLists = async (req, res) => {
 
 const getAllTheRequests = async (req, res) => {
   try {
-    const accounts = await Account.find({ toNextStep: true })
+    const accounts = await Account.find({ toNextStep: true, nextStep: { $ne: "" } })
       .sort({ createdAt: -1 })
       .populate("userId", "first_name last_name email")
       .exec();
