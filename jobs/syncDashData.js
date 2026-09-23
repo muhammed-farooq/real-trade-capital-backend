@@ -36,3 +36,5 @@ const combinedJob = async () => {
 };
 
 cron.schedule("*/14 * * * *", combinedJob);
+
+combinedJob()
